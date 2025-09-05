@@ -1,0 +1,242 @@
+{
+  "contributions": {
+    "settings": [
+      {
+        "file_patterns": ["/LSP-Tinymist.sublime-settings"],
+        "schema": {
+          "$id": "sublime://settings/LSP-Tinymist",
+          "properties": {
+            "command": {
+              "$ref": "sublime://settings/LSP#/definitions/ClientCommand"
+            },
+            "enabled": {
+              "$ref": "sublime://settings/LSP#/definitions/ClientEnabled"
+            },
+            "selector": {
+              "$ref": "sublime://settings/LSP#/definitions/ClientSelector"
+            },
+            "schemes": {
+              "$ref": "sublime://settings/LSP#/definitions/ClientSchemes"
+            },
+            "initializationOptions": {
+              "$ref": "sublime://settings/LSP#/definitions/ClientInitializationOptions"
+            },
+            "disabled_capabilities": {
+              "$ref": "sublime://settings/LSP#/definitions/ClientDisabledCapabilities"
+            },
+            "settings": {
+              "description": "Language server configurations.",
+              "type": "object",
+              // @see https://myriad-dreamin.github.io/tinymist/config/neovim.html
+              "properties": {
+                "compileStatus": {
+                  "markdownDescription": "Show the compilation status in the status bar (currently not implemented).",
+                  "type": "string",
+                  "default": "disable",
+                  "enum": ["enable", "disable"]
+                },
+                "completion.postfix": {
+                  "markdownDescription": "Whether to enable postfix code completion.\nFor example, `[A].box|` will be completed to `box[A]|`.",
+                  "type": "boolean",
+                  "default": true
+                },
+                "completion.postfixUfcs": {
+                  "markdownDescription": "Whether to enable UFCS-style completion.\nFor example, `[A].box|` will be completed to `box[A]|`.",
+                  "type": "boolean",
+                  "default": true
+                },
+                "completion.postfixUfcsLeft": {
+                  "markdownDescription": "Whether to enable left-variant UFCS-style completion.\nFor example, `[A].table|` will be completed to `table(|)[A]`.",
+                  "type": "boolean",
+                  "default": true
+                },
+                "completion.postfixUfcsRight": {
+                  "markdownDescription": "Whether to enable right-variant UFCS-style completion.\nFor example, `[A].table|` will be completed to `table([A], |)`.",
+                  "type": "boolean",
+                  "default": true
+                },
+                "completion.symbol": {
+                  "markdownDescription": "Whether to make symbol completion stepless.\nFor example, `$ar|$` will be completed to `$arrow.r$`.",
+                  "type": "string",
+                  "default": "step",
+                  "enum": ["step", "stepless"]
+                },
+                "completion.triggerOnSnippetPlaceholders": {
+                  "markdownDescription": "Whether to trigger completions on arguments (placeholders) of snippets.\nFor example, `box` will be completed to `box(|)`, and completions are shown again at the position of the placeholder in the snippet.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "exportPdf": {
+                  "markdownDescription": "The extension can export PDFs of your Typst files. This setting controls whether this feature is enabled and how often it runs.",
+                  "type": "string",
+                  "default": "never",
+                  "enum": ["never", "onSave", "onType"]
+                },
+                "exportTarget": {
+                  "markdownDescription": "The target to export the document to.\n\nNote: you can still export PDF when it is set to \"html\". This configuration only affects how the language server completes your code.",
+                  "type": "string",
+                  "default": "paged",
+                  "enum": ["paged", "html"]
+                },
+                "fontPaths": {
+                  "markdownDescription": "A list of file or directory paths to fonts.\n\nNote: the configuration source in higher priority will override the configuration source in lower priority. The order of precedence is:\n\n1. \"fontPaths\"\n2. \"typstExtraArgs.fontPaths\"\n3. LSP's CLI argument `--font-path`\n4. the environment variable `TYPST_FONT_PATHS` (a path list separated by `;` (on Windows) or `:` (otherwise)).\n\nNote: if the path to fonts is a relative path, it will be resolved based on the root directory.",
+                  "type": "array",
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "formatterIndentSize": {
+                  "markdownDescription": "Sets the indent size (using spaces) for the formatter.",
+                  "type": "integer",
+                  "default": 2
+                },
+                "formatterMode": {
+                  "markdownDescription": "The extension can format Typst files using typstfmt or typstyle.",
+                  "type": "string",
+                  "default": "typstyle",
+                  "enum": ["disable", "typstyle", "typstfmt"]
+                },
+                "formatterPrintWidth": {
+                  "markdownDescription": "Sets the print width for the formatter, which is a soft limit of characters per line. See the definition of Print Width: <https://prettier.io/docs/options.html#print-width>\n\nNote: this has lower priority than the formatter's specific configurations.",
+                  "type": "integer",
+                  "default": 120
+                },
+                "formatterProseWrap": {
+                  "markdownDescription": "Controls how the formatter handles prose line wrapping.\nIf enabled, the formatter will insert hard line breaks at the specified print width.\nIf disabled, the formatter keeps the original line breaks and spaces.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "lint.enabled": {
+                  "markdownDescription": "Enable or disable lint checks.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "lint.when": {
+                  "markdownDescription": "Configure when to perform lint checks.",
+                  "type": "string",
+                  "default": "onSave",
+                  "enum": ["onSave", "onType"]
+                },
+                "outputPath": {
+                  "markdownDescription": "The path pattern to store Typst artifacts. You can use the variables `$root`, `$dir` and `$name`, e.g. \"$dir/$name\" (default) or \"$root/target/$dir/$name\".",
+                  "type": "string",
+                  "default": ""
+                },
+                "preview.background.args": {
+                  "markdownDescription": "Arguments used for the background preview server. It is only used when \"preview.background.enabled\" is enabled.",
+                  "type": "array",
+                  "default": ["--data-plane-host=127.0.0.1:23635", "--invert-colors=auto"],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "preview.background.enabled": {
+                  "markdownDescription": "When enabled, the preview server listens a specific tcp port in the background.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "preview.browsing.args": {
+                  "markdownDescription": "The arguments used by `tinymist.startDefaultPreview` command.",
+                  "type": "array",
+                  "default": ["--data-plane-host=127.0.0.1:0", "--invert-colors=auto", "--open"],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "preview.invertColors": {
+                  "markdownDescription": "Invert colors of the preview (useful for dark themes without cost). Please note you could see the original colors when you hover elements in the preview. It is also possible to specify strategy to each element kind by an object map in JSON format.",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["never", "auto", "always"]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "image": {
+                          "type": "string",
+                          "enum": ["never", "auto", "always"]
+                        },
+                        "rest": {
+                          "type": "string",
+                          "enum": ["never", "auto", "always"]
+                        },
+                        "additionalProperties": false
+                      }
+                    }
+                  ],
+                  "default": {
+                    "image": "never",
+                    "rest": "never"
+                  }
+                },
+                "preview.partialRendering": {
+                  "markdownDescription": "Only render visible part of the document. This can improve performance, but is still experimental.",
+                  "type": "boolean",
+                  "default": true
+                },
+                "preview.refresh": {
+                  "markdownDescription": "Refresh preview when the document is saved or when the document is changed.",
+                  "type": "string",
+                  "default": "onType",
+                  "enum": ["onSave", "onType"]
+                },
+                "projectResolution": {
+                  "markdownDescription": "This configuration specifies the way to resolve projects.",
+                  "type": "string",
+                  "default": "singleFile",
+                  "enum": ["singleFile", "lockDatabase"],
+                  "markdownEnumDescriptions": [
+                    "Each single file is an individual document and no project resolution is needed.",
+                    "For each workspace, Tinymist tracks your preview and compilation history, and stores the information in a lock file. Tinymist will main file to use according to the lock file. This also allows other tools to push preview and export tasks to the language server by updating the lock file."
+                  ]
+                },
+                "rootPath": {
+                  "markdownDescription": "Configure the root for absolute paths in Typst.",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "semanticTokens": {
+                  "markdownDescription": "Enable or disable semantic highlighting.",
+                  "type": "string",
+                  "default": "enable",
+                  "enum": ["enable", "disable"]
+                },
+                "systemFonts": {
+                  "markdownDescription": "A flag that determines whether to load system fonts for the Typst compiler, which is useful for ensuring reproducible compilation. If set to `null`, the extension will use the default behavior of the Typst compiler.",
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": true
+                },
+                "typstExtraArgs": {
+                  "markdownDescription": "You can pass any arguments as you like, and we will try to follow behaviors of the same version of Typst CLI.\n\nNote: the arguments may be overridden by other settings.",
+                  "type": "array",
+                  "default": [],
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ]
+  }
+}
