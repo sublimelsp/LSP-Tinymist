@@ -30,9 +30,9 @@
               // @see https://myriad-dreamin.github.io/tinymist/config/neovim.html
               "properties": {
                 "compileStatus": {
-                  "markdownDescription": "Show the compilation status in the status bar (currently not implemented).",
+                  "markdownDescription": "Show pages and words count in the status bar.",
                   "type": "string",
-                  "default": "disable",
+                  "default": "enable",
                   "enum": ["enable", "disable"]
                 },
                 "completion.postfix": {

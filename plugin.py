@@ -4,7 +4,8 @@ from LSP.plugin import AbstractPlugin
 from LSP.plugin import register_plugin
 from LSP.plugin import unregister_plugin
 from LSP.plugin.core.protocol import ExecuteCommandParams
-from typing import Callable, Tuple
+from LSP.plugin.core.typing import StrEnum
+from typing import Callable, Tuple, TypedDict
 import os
 import sublime
 
@@ -21,18 +22,24 @@ TARBALL_NAME = {
 }.get(f'{sublime.platform()}-{sublime.arch()}')
 
 
-# class WordsCount(TypedDict):
-#     chars: int
-#     cjkChars: int
-#     spaces: int
-#     words: int
+class CompileStatus(StrEnum):
+    COMPILING = 'compiling'
+    COMPILE_SUCCESS = 'compileSuccess'
+    COMPILE_ERROR = 'compileError'
 
 
-# class CompileStatusParams(TypedDict):
-#     pageCount: int
-#     path: str
-#     status: str
-#     wordsCount: WordsCount | None
+class WordsCount(TypedDict):
+    words: int
+    chars: int
+    spaces: int
+    cjkChars: int
+
+
+class CompileStatusParams(TypedDict):
+    status: CompileStatus
+    path: str
+    pageCount: int
+    wordsCount: WordsCount | None
 
 
 def plugin_loaded() -> None:
@@ -100,5 +107,26 @@ class LspTinymistPlugin(AbstractPlugin):
         #             return True
         return False
 
-    # def m_tinymist_compileStatus(self, params: CompileStatusParams) -> None:
-    #     pass
+    def m_tinymist_compileStatus(self, params: CompileStatusParams) -> None:
+        session = self.weaksession()
+        if not session:
+            return
+        status = params['status']
+        if status == CompileStatus.COMPILING:
+            return  # Don't update the status message to prevent flickering from volatile page count report
+        # elif status == CompileStatus.COMPILE_SUCCESS:
+        #     pass
+        # elif status == CompileStatus.COMPILE_ERROR:
+        #     pass
+        # file = params['path']
+        page_count = params['pageCount']
+        msg = f'{page_count} page'
+        if page_count != 1:
+            msg += 's'
+        words_count = params['wordsCount']
+        if words_count is not None:
+            words = words_count['words']
+            msg += f', {words} word'
+            if words != 1:
+                msg += 's'
+        session.set_config_status_async(msg)
