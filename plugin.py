@@ -2,10 +2,13 @@ from __future__ import annotations
 from .tarball import decompress, download
 from LSP.plugin import AbstractPlugin
 from LSP.plugin import register_plugin
+from LSP.plugin import Session
 from LSP.plugin import unregister_plugin
 from LSP.plugin.core.protocol import ExecuteCommandParams
-from LSP.plugin.core.typing import StrEnum
+from LSP.plugin.core.typing import NotRequired, StrEnum
+from LSP.plugin.core.typing import cast
 from typing import Callable, Tuple, TypedDict
+from weakref import ref
 import os
 import sublime
 
@@ -42,6 +45,34 @@ class CompileStatusParams(TypedDict):
     wordsCount: WordsCount | None
 
 
+class CursorPosition(TypedDict):
+    page_no: int
+    x: float
+    y: float
+
+
+class OutlineItemData(TypedDict):
+    title: str
+    span: NotRequired[str]
+    position: NotRequired[CursorPosition]
+    children: list[OutlineItemData]
+
+
+class DocumentOutlineParams(TypedDict):
+    items: list[OutlineItemData]
+
+
+class PreviewResult(TypedDict):
+    staticServerAddr: NotRequired[str]
+    staticServerPort: NotRequired[int]
+    dataPlanePort: NotRequired[int]
+    isPrimary: NotRequired[bool]
+
+
+class PreviewDisposeParams(TypedDict):
+    taskId: str
+
+
 def plugin_loaded() -> None:
     register_plugin(LspTinymistPlugin)
 
@@ -51,6 +82,10 @@ def plugin_unloaded() -> None:
 
 
 class LspTinymistPlugin(AbstractPlugin):
+
+    def __init__(self, weaksession: ref[Session]) -> None:
+        super().__init__(weaksession)
+        self.preview_task_id = 0
 
     @classmethod
     def name(cls) -> str:
@@ -88,24 +123,44 @@ class LspTinymistPlugin(AbstractPlugin):
             file.write(VERSION)
 
     def on_pre_server_command(self, command: ExecuteCommandParams, done_callback: Callable[[], None]) -> bool:
-        # command_name = command['command']
-        # if command_name == 'tinymist.runCodeLens':
-        #     args = command.get('arguments')
-        #     if isinstance(args, list) and len(args) > 0:
-        #         action = args[0]
-        #         if action == 'profile':
-        #             sublime.set_timeout(done_callback)
-        #             return True
-        #         elif action == 'preview':
-        #             sublime.set_timeout(done_callback)
-        #             return True
-        #         elif action == 'export-pdf':
-        #             sublime.set_timeout(done_callback)
-        #             return True
-        #         elif action == 'more':
-        #             sublime.set_timeout(done_callback)
-        #             return True
+        command_name = command['command']
+        if command_name == 'tinymist.runCodeLens':
+            args = command.get('arguments')
+            if args:
+                action = cast(str, args[0])
+                sublime.set_timeout(lambda: self._on_code_lens(action))
+            sublime.set_timeout(done_callback)
+            return True
         return False
+
+    def _on_code_lens(self, action: str) -> None:
+        if action == 'profile':
+            pass
+        elif action == 'preview':
+            session = self.weaksession()
+            if not session:
+                return
+            if self.preview_task_id > 0:
+                command: ExecuteCommandParams = {
+                    'command': 'tinymist.doKillPreview',
+                    'arguments': [f'$ublime-{self.preview_task_id}']
+                }
+                session.execute_command(command, False)
+            self.preview_task_id += 1
+            command: ExecuteCommandParams = {
+                # 'command': 'tinymist.startDefaultPreview',
+                'command': 'tinymist.doStartBrowsingPreview',
+                # 'command': 'tinymist.doStartPreview',
+                'arguments': [['--task-id', f'$ublime-{self.preview_task_id}'] + session.config.settings.get('preview.browsing.args')]
+            }
+            session.execute_command(command, False).then(self._on_preview_result)
+        elif action == 'export-pdf':
+            pass
+        elif action == 'more':
+            pass
+
+    def _on_preview_result(self, params: PreviewResult) -> None:
+        pass
 
     def m_tinymist_compileStatus(self, params: CompileStatusParams) -> None:
         session = self.weaksession()
@@ -130,3 +185,11 @@ class LspTinymistPlugin(AbstractPlugin):
             if words != 1:
                 msg += 's'
         session.set_config_status_async(msg)
+
+    def m_tinymist_documentOutline(self, params: DocumentOutlineParams) -> None:
+        # The server requests to update the document outline.
+        pass
+
+    def m_tinymist_preview_dispose(self, params: PreviewDisposeParams) -> None:
+        # The server requests to dispose (clean up) a preview task when it is no longer needed.
+        pass

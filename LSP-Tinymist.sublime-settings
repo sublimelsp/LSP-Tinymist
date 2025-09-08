@@ -2,7 +2,7 @@
     "command": ["$storage_path/LSP-Tinymist/tinymist"],
     "selector": "text.typst",
     "settings": {
-        // Show pages and words count in the status bar.
+        // Show pages and estimated words count in the status bar.
         // Valid values: "enable", "disable"
         "compileStatus": "enable",
         // Whether to enable postfix code completion.

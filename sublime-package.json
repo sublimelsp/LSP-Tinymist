@@ -30,7 +30,7 @@
               // @see https://myriad-dreamin.github.io/tinymist/config/neovim.html
               "properties": {
                 "compileStatus": {
-                  "markdownDescription": "Show pages and words count in the status bar.",
+                  "markdownDescription": "Show pages and estimated words count in the status bar.",
                   "type": "string",
                   "default": "enable",
                   "enum": ["enable", "disable"]
