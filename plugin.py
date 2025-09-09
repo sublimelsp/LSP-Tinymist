@@ -5,6 +5,7 @@ from LSP.plugin import register_plugin
 from LSP.plugin import Session
 from LSP.plugin import unregister_plugin
 from LSP.plugin.core.protocol import ExecuteCommandParams
+from LSP.plugin.core.protocol import LSPAny
 from LSP.plugin.core.typing import NotRequired, StrEnum
 from LSP.plugin.core.typing import cast
 from typing import Callable, Tuple, TypedDict
@@ -73,6 +74,20 @@ class PreviewDisposeParams(TypedDict):
     taskId: str
 
 
+class PdfStandard(StrEnum):
+    V_1_7 = '1.7'  # PDF 1.7
+    A_2b = 'a-2b'  # PDF/A-2b
+    A_3b = 'a-3b'  # PDF/A-3b
+
+
+class ExportOpts(TypedDict):
+    fill: NotRequired[str]
+    ppi: NotRequired[int]
+    open: NotRequired[bool]
+    creation_timestamp: NotRequired[str]
+    pdf_standard: NotRequired[list[PdfStandard]]
+
+
 def plugin_loaded() -> None:
     register_plugin(LspTinymistPlugin)
 
@@ -134,12 +149,13 @@ class LspTinymistPlugin(AbstractPlugin):
         return False
 
     def _on_code_lens(self, action: str) -> None:
+        session = self.weaksession()
+        if not session:
+            return
         if action == 'profile':
             pass
         elif action == 'preview':
-            session = self.weaksession()
-            if not session:
-                return
+            # TODO: handle multiple open files
             if self.preview_task_id > 0:
                 command: ExecuteCommandParams = {
                     'command': 'tinymist.doKillPreview',
@@ -155,7 +171,20 @@ class LspTinymistPlugin(AbstractPlugin):
             }
             session.execute_command(command, False).then(self._on_preview_result)
         elif action == 'export-pdf':
-            pass
+            view = session.window.active_view()
+            if not view:
+                return
+            filename = view.file_name()
+            if not filename:
+                return
+            export_opts: ExportOpts = {
+                'open': True
+            }
+            command: ExecuteCommandParams = {
+                'command': 'tinymist.exportPdf',
+                'arguments': [filename, cast(LSPAny, export_opts)]
+            }
+            session.execute_command(command, False)
         elif action == 'more':
             pass
 
