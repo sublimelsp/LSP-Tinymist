@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .tarball import decompress, download
 from LSP.plugin import AbstractPlugin
+from LSP.plugin import LspTextCommand
 from LSP.plugin import register_plugin
 from LSP.plugin import Session
 from LSP.plugin import unregister_plugin
@@ -12,6 +13,7 @@ from typing import Callable, Tuple, TypedDict
 from weakref import ref
 import os
 import sublime
+import sublime_plugin
 
 
 PACKAGE_NAME = 'LSP-Tinymist'
@@ -86,6 +88,7 @@ class ExportOpts(TypedDict):
     open: NotRequired[bool]
     creation_timestamp: NotRequired[str]
     pdf_standard: NotRequired[list[PdfStandard]]
+    page: NotRequired[dict]
 
 
 def plugin_loaded() -> None:
@@ -186,7 +189,10 @@ class LspTinymistPlugin(AbstractPlugin):
             }
             session.execute_command(command, False)
         elif action == 'more':
-            pass
+            view = session.window.active_view()
+            if not view:
+                return
+            view.run_command('lsp_tinymist_export')
 
     def _on_preview_result(self, params: PreviewResult) -> None:
         pass
@@ -222,3 +228,63 @@ class LspTinymistPlugin(AbstractPlugin):
     def m_tinymist_preview_dispose(self, params: PreviewDisposeParams) -> None:
         # The server requests to dispose (clean up) a preview task when it is no longer needed.
         pass
+
+
+class LspTinymistExportCommand(LspTextCommand):
+
+    session_name = PACKAGE_NAME
+
+    def run(self, edit: sublime.Edit, format: str):  # pyright: ignore[reportIncompatibleMethodOverride]
+        filename = self.view.file_name()
+        if not filename:
+            self._status_message('Export unavailable for unsaved file')
+            return
+        session = self.session_by_name(self.session_name)
+        if not session:
+            return
+        export_opts: ExportOpts = {
+            'open': True
+        }
+        command_name = {
+            'pdf': 'tinymist.exportPdf',
+            'png': 'tinymist.exportPng',
+            'svg': 'tinymist.exportSvg',
+            'html': 'tinymist.exportHtml',
+            'markdown': 'tinymist.exportMarkdown',
+            'latex': 'tinymist.exportTeX'
+        }.get(format)
+        if not command_name:
+            self._status_message(f'Unsupported format {format}')
+            return
+        if format in ('png', 'svg'):
+            export_opts['page'] = {'merged': {'gap': '0pt'}}
+        command: ExecuteCommandParams = {
+            'command': command_name,
+            'arguments': [filename, cast(LSPAny, export_opts)]
+        }
+        session.execute_command(command, False)
+
+    def input(self, args: dict) -> sublime_plugin.ListInputHandler | None:
+        if 'command' not in args:
+            return ExportFormatInputHandler()
+
+    def _status_message(self, msg: str) -> None:
+        window = self.view.window()
+        if window:
+            window.status_message(msg)
+
+
+class ExportFormatInputHandler(sublime_plugin.ListInputHandler):
+
+    def name(self) -> str:
+        return 'format'
+
+    def list_items(self) -> list[sublime.ListInputItem]:
+        return [
+            sublime.ListInputItem('Export as PDF', 'pdf'),
+            sublime.ListInputItem('Export as PNG (by merging pages)', 'png'),
+            sublime.ListInputItem('Export as SVG (by merging pages)', 'svg'),
+            sublime.ListInputItem('Export as HTML', 'html'),
+            sublime.ListInputItem('Export as Markdown', 'markdown'),
+            sublime.ListInputItem('Export as LaTeX', 'latex')
+        ]
