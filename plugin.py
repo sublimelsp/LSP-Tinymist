@@ -3,6 +3,7 @@ from .tarball import decompress, download
 from LSP.plugin import AbstractPlugin
 from LSP.plugin import LspTextCommand
 from LSP.plugin import register_plugin
+from LSP.plugin import Response
 from LSP.plugin import Session
 from LSP.plugin import unregister_plugin
 from LSP.plugin.core.protocol import ExecuteCommandParams
@@ -140,6 +141,10 @@ class LspTinymistPlugin(AbstractPlugin):
         with open(os.path.join(cls.basedir(), 'VERSION'), 'w') as file:
             file.write(VERSION)
 
+    def on_server_response_async(self, method: str, response: Response) -> None:
+        if method == 'textDocument/codeLens' and response.result:
+            del response.result[0]  # Profile
+
     def on_pre_server_command(self, command: ExecuteCommandParams, done_callback: Callable[[], None]) -> bool:
         command_name = command['command']
         if command_name == 'tinymist.runCodeLens':
@@ -155,8 +160,6 @@ class LspTinymistPlugin(AbstractPlugin):
         session = self.weaksession()
         if not session:
             return
-        if action == 'profile':
-            pass
         elif action == 'preview':
             # TODO: handle multiple open files
             if self.preview_task_id > 0:
