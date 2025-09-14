@@ -8,6 +8,24 @@
         }
     },
     {
+        "caption": "LSP-Tinymist: Pin Main File",
+        "command": "lsp_execute",
+        "args": {
+            "session_name": "LSP-Tinymist",
+            "command_name": "tinymist.pinMain",
+            "command_args": ["$file"]
+        }
+    },
+    {
+        "caption": "LSP-Tinymist: Unpin Main File",
+        "command": "lsp_execute",
+        "args": {
+            "session_name": "LSP-Tinymist",
+            "command_name": "tinymist.pinMain",
+            "command_args": [null]
+        }
+    },
+    {
         "caption": "LSP-Tinymist: Export…",
         "command": "lsp_tinymist_export"
     },
