@@ -2,15 +2,18 @@ from __future__ import annotations
 from .tarball import decompress, download
 from LSP.plugin import AbstractPlugin
 from LSP.plugin import LspTextCommand
+from LSP.plugin import parse_uri
 from LSP.plugin import register_plugin
+from LSP.plugin import Request
 from LSP.plugin import Response
 from LSP.plugin import Session
 from LSP.plugin import unregister_plugin
 from LSP.plugin.core.protocol import ExecuteCommandParams
 from LSP.plugin.core.protocol import LSPAny
+from LSP.plugin.core.protocol import TextDocumentPositionParams
 from LSP.plugin.core.typing import NotRequired, StrEnum
 from LSP.plugin.core.typing import cast
-from typing import Callable, Tuple, TypedDict
+from typing import Callable, Literal, Tuple, TypedDict
 from weakref import ref
 import os
 import sublime
@@ -77,6 +80,13 @@ class PreviewDisposeParams(TypedDict):
     taskId: str
 
 
+class PreviewScrollParams(TypedDict):
+    event: Literal['changeCursorPosition'] | Literal['panelScrollTo']
+    filepath: str
+    line: int
+    character: int
+
+
 class PdfStandard(StrEnum):
     V_1_7 = '1.7'  # PDF 1.7
     A_2b = 'a-2b'  # PDF/A-2b
@@ -104,7 +114,11 @@ class LspTinymistPlugin(AbstractPlugin):
 
     def __init__(self, weaksession: ref[Session]) -> None:
         super().__init__(weaksession)
-        self.preview_task_id = 0
+        self._preview_task_id = 0
+
+    @property
+    def preview_task_id(self) -> str:
+        return f'$ublime-{self._preview_task_id}' if self._preview_task_id else ''
 
     @classmethod
     def name(cls) -> str:
@@ -162,18 +176,18 @@ class LspTinymistPlugin(AbstractPlugin):
             return
         elif action == 'preview':
             # TODO: handle multiple open files
-            if self.preview_task_id > 0:
+            if self.preview_task_id:
                 command: ExecuteCommandParams = {
                     'command': 'tinymist.doKillPreview',
-                    'arguments': [f'$ublime-{self.preview_task_id}']
+                    'arguments': [self.preview_task_id]
                 }
                 session.execute_command(command, False)
-            self.preview_task_id += 1
+            self._preview_task_id += 1
             command: ExecuteCommandParams = {
                 # 'command': 'tinymist.startDefaultPreview',
                 'command': 'tinymist.doStartBrowsingPreview',
                 # 'command': 'tinymist.doStartPreview',
-                'arguments': [['--task-id', f'$ublime-{self.preview_task_id}'] + session.config.settings.get('preview.browsing.args')]
+                'arguments': [['--task-id', self.preview_task_id] + session.config.settings.get('preview.browsing.args')]
             }
             session.execute_command(command, False).then(self._on_preview_result)
         elif action == 'export-pdf':
@@ -199,6 +213,32 @@ class LspTinymistPlugin(AbstractPlugin):
 
     def _on_preview_result(self, params: PreviewResult) -> None:
         pass
+
+    def on_pre_send_request_async(self, request_id: int, request: Request) -> None:
+        # Hack into document highlight request to send an additional request when the caret position changes to scroll
+        # the browser preview.
+        if self.preview_task_id and request.method == 'textDocument/documentHighlight':
+            sublime.set_timeout_async(lambda: self.on_caret_moved_async(request.params))
+
+    def on_caret_moved_async(self, position_params: TextDocumentPositionParams) -> None:
+        session = self.weaksession()
+        if not session:
+            return
+        scheme, path = parse_uri(position_params['textDocument']['uri'])
+        if scheme != 'file':
+            return
+        position = position_params['position']
+        params: PreviewScrollParams = {
+            'event': 'panelScrollTo',
+            'filepath': path,
+            'line': position['line'],
+            'character': position['character']
+        }
+        command: ExecuteCommandParams = {
+            'command': 'tinymist.scrollPreview',
+            'arguments': [self.preview_task_id, cast(LSPAny, params)]
+        }
+        session.execute_command(command, False)
 
     def m_tinymist_compileStatus(self, params: CompileStatusParams) -> None:
         session = self.weaksession()
