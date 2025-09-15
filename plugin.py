@@ -8,12 +8,15 @@ from LSP.plugin import Request
 from LSP.plugin import Response
 from LSP.plugin import Session
 from LSP.plugin import unregister_plugin
+from LSP.plugin.core.open import open_externally
+from LSP.plugin.core.protocol import DocumentUri
 from LSP.plugin.core.protocol import ExecuteCommandParams
 from LSP.plugin.core.protocol import LSPAny
 from LSP.plugin.core.protocol import TextDocumentPositionParams
 from LSP.plugin.core.typing import NotRequired, StrEnum
 from LSP.plugin.core.typing import cast
 from typing import Callable, Literal, Tuple, TypedDict
+from urllib.parse import unquote, urlparse
 from weakref import ref
 import os
 import sublime
@@ -215,8 +218,8 @@ class LspTinymistPlugin(AbstractPlugin):
         pass
 
     def on_pre_send_request_async(self, request_id: int, request: Request) -> None:
-        # Hack into document highlight request to send an additional request when the caret position changes to scroll
-        # the browser preview.
+        # Hack into document highlight request to send an additional request to scroll the browser preview when the
+        # caret position changes.
         if self.preview_task_id and request.method == 'textDocument/documentHighlight':
             sublime.set_timeout_async(lambda: self.on_caret_moved_async(request.params))
 
@@ -240,13 +243,31 @@ class LspTinymistPlugin(AbstractPlugin):
         }
         session.execute_command(command, False)
 
+    def on_open_uri_async(self, uri: DocumentUri, callback: Callable[[str, str, str], None]) -> bool:
+        parsed = urlparse(uri)
+        if parsed.scheme == 'command' and parsed.path.startswith('tinymist'):
+            command = parsed.path
+            scheme, filename = parse_uri(unquote(parsed.query).strip('[]"'))
+            if scheme != 'file':
+                return False
+            if command == 'tinymist.openInternal':
+                session = self.weaksession()
+                if not session:
+                    return False
+                session.window.open_file(filename)
+            elif command == 'tinymist.openExternal':
+                open_externally(filename, True)
+            # sublime.set_timeout_async(lambda: callback('', '', ''))
+            return True
+        return False
+
     def m_tinymist_compileStatus(self, params: CompileStatusParams) -> None:
         session = self.weaksession()
         if not session:
             return
         status = params['status']
         if status == CompileStatus.COMPILING:
-            return  # Don't update the status message to prevent flickering from volatile page count report
+            return  # Don't update the status message to prevent flickering from volatile page count report.
         # elif status == CompileStatus.COMPILE_SUCCESS:
         #     pass
         # elif status == CompileStatus.COMPILE_ERROR:
