@@ -7,11 +7,11 @@ A plugin for the LSP client in Sublime Text with support for the [Tinymist](http
 ## Installation
 
 Install the [Typst](https://packages.sublimetext.io/packages/Typst/) package for syntax highlighting, and the [LSP](https://packages.sublimetext.io/packages/LSP/) and LSP-Tinymist packages from Package Control.
-The language server executable is downloaded and updated automatically when you open a Typst file.
+The language server executable is downloaded automatically when you open a Typst file and it is updated with new releases of this package.
 
 ## Configuration
 
-Some configuration options are available using the *Preferences: LSP-Tinymist Settings* command from the command palette.
+Some configuration options are available in the package settings which can be opened using the *Preferences: LSP-Tinymist Settings* command from the command palette.
 
 ## Working with Multiple-Files Projects
 

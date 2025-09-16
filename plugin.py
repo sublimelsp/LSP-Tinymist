@@ -1,5 +1,6 @@
 from __future__ import annotations
 from .tarball import decompress, download
+from LSP.plugin import __version__ as LSP_VERSION
 from LSP.plugin import AbstractPlugin
 from LSP.plugin import LspTextCommand
 from LSP.plugin import parse_uri
@@ -8,6 +9,7 @@ from LSP.plugin import Request
 from LSP.plugin import Response
 from LSP.plugin import Session
 from LSP.plugin import unregister_plugin
+from LSP.plugin.core.logging import debug
 from LSP.plugin.core.open import open_externally
 from LSP.plugin.core.protocol import DocumentUri
 from LSP.plugin.core.protocol import ExecuteCommandParams
@@ -139,8 +141,6 @@ class LspTinymistPlugin(AbstractPlugin):
 
     @classmethod
     def needs_update_or_installation(cls) -> bool:
-        if not TARBALL_NAME:
-            return False
         try:
             with open(os.path.join(cls.basedir(), 'VERSION'), 'r') as file:
                 return file.read().strip() != VERSION
@@ -149,7 +149,9 @@ class LspTinymistPlugin(AbstractPlugin):
 
     @classmethod
     def install_or_update(cls) -> None:
-        assert TARBALL_NAME
+        if not TARBALL_NAME:
+            debug('Prebuilt Tinymist binary is not available for this system.')
+            return
         download_url = f'https://github.com/Myriad-Dreamin/tinymist/releases/download/{VERSION}/{TARBALL_NAME}'
         server_dir = cls.basedir()
         tarball_path = os.path.join(server_dir, TARBALL_NAME)
@@ -243,21 +245,20 @@ class LspTinymistPlugin(AbstractPlugin):
         }
         session.execute_command(command, False)
 
-    def on_open_uri_async(self, uri: DocumentUri, callback: Callable[[str, str, str], None]) -> bool:
+    def on_open_uri_async(self, uri: DocumentUri, callback: Callable[[str | None, str, str], None]) -> bool:
         parsed = urlparse(uri)
         if parsed.scheme == 'command' and parsed.path.startswith('tinymist'):
             command = parsed.path
             scheme, filename = parse_uri(unquote(parsed.query).strip('[]"'))
-            if scheme != 'file':
-                return False
-            if command == 'tinymist.openInternal':
-                session = self.weaksession()
-                if not session:
-                    return False
-                session.window.open_file(filename)
-            elif command == 'tinymist.openExternal':
-                open_externally(filename, True)
-            # sublime.set_timeout_async(lambda: callback('', '', ''))
+            if scheme == 'file':
+                if command == 'tinymist.openInternal':
+                    session = self.weaksession()
+                    if session:
+                        session.window.open_file(filename)
+                elif command == 'tinymist.openExternal':
+                    open_externally(filename, True)
+            if LSP_VERSION >= (2, 6, 0):  # pyright: ignore[reportOperatorIssue]  # https://github.com/microsoft/pyright/issues/7733
+                sublime.set_timeout_async(lambda: callback(None, '', ''))
             return True
         return False
 
@@ -267,7 +268,7 @@ class LspTinymistPlugin(AbstractPlugin):
             return
         status = params['status']
         if status == CompileStatus.COMPILING:
-            return  # Don't update the status message to prevent flickering from volatile page count report.
+            return  # Don't update the status message to prevent flickering from volatile page count reports.
         # elif status == CompileStatus.COMPILE_SUCCESS:
         #     pass
         # elif status == CompileStatus.COMPILE_ERROR:
@@ -309,6 +310,7 @@ class LspTinymistExportCommand(LspTextCommand):
         export_opts: ExportOpts = {
             'open': True
         }
+        format_ = format.lower()
         command_name = {
             'pdf': 'tinymist.exportPdf',
             'png': 'tinymist.exportPng',
@@ -316,11 +318,11 @@ class LspTinymistExportCommand(LspTextCommand):
             'html': 'tinymist.exportHtml',
             'markdown': 'tinymist.exportMarkdown',
             'latex': 'tinymist.exportTeX'
-        }.get(format)
+        }.get(format_)
         if not command_name:
             self._status_message(f'Unsupported format {format}')
             return
-        if format in ('png', 'svg'):
+        if format_ in ('png', 'svg'):
             export_opts['page'] = {'merged': {'gap': '0pt'}}
         command: ExecuteCommandParams = {
             'command': command_name,
@@ -344,11 +346,5 @@ class ExportFormatInputHandler(sublime_plugin.ListInputHandler):
         return 'format'
 
     def list_items(self) -> list[sublime.ListInputItem]:
-        return [
-            sublime.ListInputItem('Export as PDF', 'pdf'),
-            sublime.ListInputItem('Export as PNG (by merging pages)', 'png'),
-            sublime.ListInputItem('Export as SVG (by merging pages)', 'svg'),
-            sublime.ListInputItem('Export as HTML', 'html'),
-            sublime.ListInputItem('Export as Markdown', 'markdown'),
-            sublime.ListInputItem('Export as LaTeX', 'latex')
-        ]
+        formats = ('PDF', 'PNG', 'SVG', 'HTML', 'Markdown', 'LaTeX')
+        return [sublime.ListInputItem(f'Export as {fmt}', fmt) for fmt in formats]
