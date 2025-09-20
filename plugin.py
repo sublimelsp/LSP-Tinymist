@@ -14,9 +14,16 @@ from LSP.plugin.core.open import open_externally
 from LSP.plugin.core.protocol import DocumentUri
 from LSP.plugin.core.protocol import ExecuteCommandParams
 from LSP.plugin.core.protocol import LSPAny
+from LSP.plugin.core.protocol import Range
+from LSP.plugin.core.protocol import TextDocumentIdentifier
 from LSP.plugin.core.protocol import TextDocumentPositionParams
+from LSP.plugin.core.protocol import TextEdit
 from LSP.plugin.core.typing import NotRequired, StrEnum
 from LSP.plugin.core.typing import cast
+from LSP.plugin.core.views import first_selection_region
+from LSP.plugin.core.views import region_to_range
+from LSP.plugin.core.views import text_document_identifier
+from functools import partial
 from typing import Callable, Literal, Tuple, TypedDict
 from urllib.parse import unquote, urlparse
 from weakref import ref
@@ -90,6 +97,11 @@ class PreviewScrollParams(TypedDict):
     filepath: str
     line: int
     character: int
+
+
+class OnEnterParams(TypedDict):
+    textDocument: TextDocumentIdentifier
+    range: Range
 
 
 class PdfStandard(StrEnum):
@@ -245,7 +257,7 @@ class LspTinymistPlugin(AbstractPlugin):
         }
         session.execute_command(command, False)
 
-    def on_open_uri_async(self, uri: DocumentUri, callback: Callable[[str | None, str, str], None]) -> bool:
+    def on_open_uri_async(self, uri: DocumentUri, callback: Callable[[str | None, str, str], None]) -> bool:  # pyright: ignore[reportIncompatibleMethodOverride]
         parsed = urlparse(uri)
         if parsed.scheme == 'command' and parsed.path.startswith('tinymist'):
             command = parsed.path
@@ -348,3 +360,33 @@ class ExportFormatInputHandler(sublime_plugin.ListInputHandler):
     def list_items(self) -> list[sublime.ListInputItem]:
         formats = ('PDF', 'PNG', 'SVG', 'HTML', 'Markdown', 'LaTeX')
         return [sublime.ListInputItem(f'Export as {fmt}', fmt) for fmt in formats]
+
+
+class LspTinymistOnEnterCommand(LspTextCommand):
+
+    capability = 'experimental.onEnter'
+    session_name = PACKAGE_NAME
+
+    def run(self, edit: sublime.Edit) -> None:
+        session = self.session_by_name(self.session_name, self.capability)
+        if not session:
+            return
+        selection_region = first_selection_region(self.view)
+        if selection_region is None:
+            return
+        params: OnEnterParams = {
+            'textDocument': text_document_identifier(self.view),
+            'range': region_to_range(self.view, selection_region)
+        }
+        request = Request('experimental/onEnter', params, self.view)
+        session.send_request_async(request, partial(self._on_result, self.view.change_count()))
+
+    def _on_result(self, version: int, edits: list[TextEdit] | None) -> None:
+        if edits:
+            self.view.run_command('lsp_apply_document_edit', {
+                'changes': edits,
+                'required_view_version': version,
+                'process_placeholders': True
+            })
+        elif version == self.view.change_count():
+            self.view.run_command('insert', {'characters': '\n'})
