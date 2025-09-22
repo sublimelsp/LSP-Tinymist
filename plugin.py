@@ -1,6 +1,5 @@
 from __future__ import annotations
 from .tarball import decompress, download
-from LSP.plugin import __version__ as LSP_VERSION
 from LSP.plugin import AbstractPlugin
 from LSP.plugin import LspTextCommand
 from LSP.plugin import parse_uri
@@ -198,7 +197,7 @@ class LspTinymistPlugin(AbstractPlugin):
                     'command': 'tinymist.doKillPreview',
                     'arguments': [self.preview_task_id]
                 }
-                session.execute_command(command, False)
+                session.execute_command(command)
             self._preview_task_id += 1
             command: ExecuteCommandParams = {
                 # 'command': 'tinymist.startDefaultPreview',
@@ -206,7 +205,7 @@ class LspTinymistPlugin(AbstractPlugin):
                 # 'command': 'tinymist.doStartPreview',
                 'arguments': [['--task-id', self.preview_task_id] + session.config.settings.get('preview.browsing.args')]
             }
-            session.execute_command(command, False).then(self._on_preview_result)
+            session.execute_command(command).then(self._on_preview_result)
         elif action == 'export-pdf':
             view = session.window.active_view()
             if not view:
@@ -221,7 +220,7 @@ class LspTinymistPlugin(AbstractPlugin):
                 'command': 'tinymist.exportPdf',
                 'arguments': [filename, cast(LSPAny, export_opts)]
             }
-            session.execute_command(command, False)
+            session.execute_command(command)
         elif action == 'more':
             view = session.window.active_view()
             if not view:
@@ -255,9 +254,9 @@ class LspTinymistPlugin(AbstractPlugin):
             'command': 'tinymist.scrollPreview',
             'arguments': [self.preview_task_id, cast(LSPAny, params)]
         }
-        session.execute_command(command, False)
+        session.execute_command(command)
 
-    def on_open_uri_async(self, uri: DocumentUri, callback: Callable[[str | None, str, str], None]) -> bool:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def on_open_uri_async(self, uri: DocumentUri, callback: Callable[[str | None, str, str], None]) -> bool:
         parsed = urlparse(uri)
         if parsed.scheme == 'command' and parsed.path.startswith('tinymist'):
             command = parsed.path
@@ -269,8 +268,7 @@ class LspTinymistPlugin(AbstractPlugin):
                         session.window.open_file(filename)
                 elif command == 'tinymist.openExternal':
                     open_externally(filename, True)
-            if LSP_VERSION >= (2, 6, 0):  # pyright: ignore[reportOperatorIssue]  # https://github.com/microsoft/pyright/issues/7733
-                sublime.set_timeout_async(lambda: callback(None, '', ''))
+            sublime.set_timeout_async(lambda: callback(None, '', ''))
             return True
         return False
 
@@ -340,7 +338,7 @@ class LspTinymistExportCommand(LspTextCommand):
             'command': command_name,
             'arguments': [filename, cast(LSPAny, export_opts)]
         }
-        session.execute_command(command, False)
+        session.execute_command(command)
 
     def input(self, args: dict) -> sublime_plugin.ListInputHandler | None:
         if 'command' not in args:
