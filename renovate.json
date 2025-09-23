@@ -18,4 +18,5 @@
       "extractVersionTemplate": "v?(?<version>[\\d\\.]*)$",
       "versioningTemplate": "semver"
     }
-  ]}
+  ]
+}
