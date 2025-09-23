@@ -14,7 +14,7 @@
         "VERSION = 'v(?<currentValue>.+?)'"
       ],
       "datasourceTemplate": "github-releases",
-      "packageNameTemplate": "hashicorp/terraform-ls",
+      "packageNameTemplate": "Myriad-Dreamin/tinymist",
       "extractVersionTemplate": "v?(?<version>[\\d\\.]*)$",
       "versioningTemplate": "semver"
     }
