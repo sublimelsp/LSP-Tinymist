@@ -8,7 +8,6 @@
             { "key": "panel_has_focus", "operand": false },
             { "key": "auto_complete_visible", "operand": false },
             { "key": "setting.auto_indent", "operand": true },
-            { "key": "setting.smart_indent", "operand": true },
             { "key": "num_selections", "operand": 1 },
             { "key": "lsp.session_with_name", "operand": "LSP-Tinymist" },
         ]
