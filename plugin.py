@@ -134,7 +134,7 @@ class LspTinymistPlugin(AbstractPlugin):
 
     @property
     def preview_task_id(self) -> str:
-        return f'$ublime-{self._preview_task_id}' if self._preview_task_id else ''
+        return f'preview-{self._preview_task_id}' if self._preview_task_id else ''
 
     @classmethod
     def name(cls) -> str:
@@ -191,7 +191,6 @@ class LspTinymistPlugin(AbstractPlugin):
         if not session:
             return
         elif action == 'preview':
-            # TODO: handle multiple open files
             if self.preview_task_id:
                 command: ExecuteCommandParams = {
                     'command': 'tinymist.doKillPreview',
@@ -200,9 +199,7 @@ class LspTinymistPlugin(AbstractPlugin):
                 session.execute_command(command)
             self._preview_task_id += 1
             command: ExecuteCommandParams = {
-                # 'command': 'tinymist.startDefaultPreview',
                 'command': 'tinymist.doStartBrowsingPreview',
-                # 'command': 'tinymist.doStartPreview',
                 'arguments': [['--task-id', self.preview_task_id] + session.config.settings.get('preview.browsing.args')]
             }
             session.execute_command(command).then(self._on_preview_result)
