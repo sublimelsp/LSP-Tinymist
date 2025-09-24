@@ -1,6 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "github>sublimelsp/renovate-preset"
+    "github>sublimelsp/renovate-preset",
+    ":semanticCommitsDisabled"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^plugin\\.py$/"
+      ],
+      "matchStrings": [
+        "VERSION = 'v(?<currentValue>.+?)'"
+      ],
+      "datasourceTemplate": "github-releases",
+      "packageNameTemplate": "Myriad-Dreamin/tinymist",
+      "extractVersionTemplate": "v?(?<version>[\\d\\.]*)$",
+      "versioningTemplate": "semver"
+    }
   ]
 }
