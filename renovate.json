@@ -15,7 +15,7 @@
       ],
       "datasourceTemplate": "github-releases",
       "packageNameTemplate": "Myriad-Dreamin/tinymist",
-      "extractVersionTemplate": "v?(?<version>[\\d\\.]*)$",
+      "extractVersionTemplate": "v?(?<version>\\d+\\.\\d+\\.\\d*[02468])$",
       "versioningTemplate": "semver"
     }
   ]
