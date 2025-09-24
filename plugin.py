@@ -345,7 +345,7 @@ class LspTinymistExportCommand(LspTextCommand):
         session.execute_command(command)
 
     def input(self, args: dict) -> sublime_plugin.ListInputHandler | None:
-        if 'command' not in args:
+        if 'format' not in args:
             return ExportFormatInputHandler()
 
     def _status_message(self, msg: str) -> None:
