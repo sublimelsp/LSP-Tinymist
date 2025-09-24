@@ -151,6 +151,13 @@ class LspTinymistPlugin(AbstractPlugin):
         return os.path.join(cls.storage_path(), PACKAGE_NAME)
 
     @classmethod
+    def additional_variables(cls) -> dict[str, str] | None:
+        server_dir = cls.basedir()
+        if TARBALL_NAME and TARBALL_NAME.endswith('.tar.gz'):
+            server_dir = os.path.join(server_dir, TARBALL_NAME.split('.')[0])
+        return {'server_dir': server_dir}
+
+    @classmethod
     def needs_update_or_installation(cls) -> bool:
         try:
             with open(os.path.join(cls.basedir(), 'VERSION'), 'r') as file:
