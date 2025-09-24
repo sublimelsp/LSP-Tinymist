@@ -13,6 +13,9 @@ The language server executable is downloaded automatically when you open a Typst
 
 Some configuration options are available in the package settings which can be opened using the *Preferences: LSP-Tinymist Settings* command from the command palette.
 
+> [!TIP]
+> To improve auto-completions in math mode, append the scope `text.typst markup.math` to the built-in `"auto_complete_selector"` setting (*Preferences: Settings* from the command palette).
+
 ## Working with Multiple-Files Projects
 
 Tinymist doesn't automatically know the main file of a multiple-files project.

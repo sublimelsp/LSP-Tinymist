@@ -18,6 +18,9 @@
             "schemes": {
               "$ref": "sublime://settings/LSP#/definitions/ClientSchemes"
             },
+            "auto_complete_selector": {
+              "$ref": "sublime://settings/LSP#/definitions/ClientAutoCompleteSelector"
+            },
             "initializationOptions": {
               "$ref": "sublime://settings/LSP#/definitions/ClientInitializationOptions"
             },

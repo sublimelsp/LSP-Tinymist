@@ -1,6 +1,7 @@
 {
     "command": ["$server_dir/tinymist"],
     "selector": "text.typst",
+    "auto_complete_selector": "text.typst meta.expression, text.typst markup.math",
     "settings": {
         // Show pages and estimated words count in the status bar.
         // Valid values: "enable", "disable"
