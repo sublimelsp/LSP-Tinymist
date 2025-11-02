@@ -23,7 +23,7 @@ from LSP.plugin.core.views import first_selection_region
 from LSP.plugin.core.views import region_to_range
 from LSP.plugin.core.views import text_document_identifier
 from functools import partial
-from typing import Callable, Literal, Tuple, TypedDict
+from typing import Callable, List, Literal, Tuple, TypedDict, Union
 from urllib.parse import unquote, urlparse
 from weakref import ref
 import os
@@ -109,13 +109,52 @@ class PdfStandard(StrEnum):
     A_3b = 'a-3b'  # PDF/A-3b
 
 
-class ExportOpts(TypedDict):
+class ExportPdfOpts(TypedDict):
+    pages: NotRequired[list[str]]
+    creationTimestamp: NotRequired[str | None]
+
+
+class PageMergeOpts(TypedDict):
+    gap: NotRequired[str | None]
+
+
+class ExportPngOpts(TypedDict):
+    pages: NotRequired[list[str]]
+    pageNumberTemplate: NotRequired[str]
+    merge: NotRequired[PageMergeOpts]
     fill: NotRequired[str]
     ppi: NotRequired[int]
+
+
+class ExportSvgOpts(TypedDict):
+    pages: NotRequired[list[str]]
+    pageNumberTemplate: NotRequired[str]
+    merge: NotRequired[PageMergeOpts]
+
+
+class ExportHtmlOpts(TypedDict):
+    pass
+
+
+ExportOpts = Union[ExportPdfOpts, ExportPngOpts, ExportSvgOpts, ExportHtmlOpts]
+
+
+class ExportActionOpts(TypedDict):
+    write: NotRequired[bool]
     open: NotRequired[bool]
-    creation_timestamp: NotRequired[str]
-    pdf_standard: NotRequired[list[PdfStandard]]
-    page: NotRequired[dict]
+
+
+class ExportedPage(TypedDict):
+    page: int
+    path: str | None
+    data: str | None
+
+
+class ExportResponse(TypedDict):
+    path: NotRequired[str | None]
+    data: NotRequired[str | None]
+    totalPages: NotRequired[int]
+    items: NotRequired[list[ExportedPage]]
 
 
 def plugin_loaded() -> None:
@@ -194,42 +233,26 @@ class LspTinymistPlugin(AbstractPlugin):
         return False
 
     def _on_code_lens(self, action: str) -> None:
-        session = self.weaksession()
-        if not session:
-            return
-        elif action == 'preview':
-            if self.preview_task_id:
+        if session := self.weaksession():
+            if action == 'preview':
+                if self.preview_task_id:
+                    command: ExecuteCommandParams = {
+                        'command': 'tinymist.doKillPreview',
+                        'arguments': [self.preview_task_id]
+                    }
+                    session.execute_command(command)
+                self._preview_task_id += 1
                 command: ExecuteCommandParams = {
-                    'command': 'tinymist.doKillPreview',
-                    'arguments': [self.preview_task_id]
+                    'command': 'tinymist.doStartBrowsingPreview',
+                    'arguments': [['--task-id', self.preview_task_id] + session.config.settings.get('preview.browsing.args')]
                 }
-                session.execute_command(command)
-            self._preview_task_id += 1
-            command: ExecuteCommandParams = {
-                'command': 'tinymist.doStartBrowsingPreview',
-                'arguments': [['--task-id', self.preview_task_id] + session.config.settings.get('preview.browsing.args')]
-            }
-            session.execute_command(command).then(self._on_preview_result)
-        elif action == 'export-pdf':
-            view = session.window.active_view()
-            if not view:
-                return
-            filename = view.file_name()
-            if not filename:
-                return
-            export_opts: ExportOpts = {
-                'open': True
-            }
-            command: ExecuteCommandParams = {
-                'command': 'tinymist.exportPdf',
-                'arguments': [filename, cast(LSPAny, export_opts)]
-            }
-            session.execute_command(command)
-        elif action == 'more':
-            view = session.window.active_view()
-            if not view:
-                return
-            view.run_command('lsp_tinymist_export')
+                session.execute_command(command).then(self._on_preview_result)
+            elif action == 'export-pdf':
+                if view := session.window.active_view():
+                    view.run_command('lsp_tinymist_export', {'format': 'pdf'})
+            elif action == 'more':
+                if view := session.window.active_view():
+                    view.run_command('lsp_tinymist_export')
 
     def _on_preview_result(self, params: PreviewResult) -> None:
         pass
@@ -321,36 +344,46 @@ class LspTinymistExportCommand(LspTextCommand):
         session = self.session_by_name(self.session_name)
         if not session:
             return
-        export_opts: ExportOpts = {
-            'open': True
-        }
-        format_ = format.lower()
-        command_name = {
-            'pdf': 'tinymist.exportPdf',
-            'png': 'tinymist.exportPng',
-            'svg': 'tinymist.exportSvg',
-            'html': 'tinymist.exportHtml',
-            'markdown': 'tinymist.exportMarkdown',
-            'latex': 'tinymist.exportTeX'
-        }.get(format_)
-        if not command_name:
+        extra_opts: ExportOpts = {}
+        actions: ExportActionOpts = {'open': True}
+        fmt = format.lower()
+        if fmt == 'pdf':
+            command_name = 'tinymist.exportPdf'
+            extra_opts = cast(ExportPdfOpts, extra_opts)
+        elif fmt == 'png':
+            command_name = 'tinymist.exportPng'
+            extra_opts = cast(ExportPngOpts, extra_opts)
+            extra_opts['merge'] = {'gap': None}
+        elif fmt == 'svg':
+            command_name = 'tinymist.exportSvg'
+            extra_opts = cast(ExportSvgOpts, extra_opts)
+            extra_opts['merge'] = {'gap': None}
+        elif fmt == 'html':
+            command_name = 'tinymist.exportHtml'
+            extra_opts = cast(ExportHtmlOpts, extra_opts)
+        elif fmt == 'markdown':
+            command_name = 'tinymist.exportMarkdown'
+        elif fmt == 'latex':
+            command_name = 'tinymist.exportTeX'
+        else:
             self._status_message(f'Unsupported format {format}')
             return
-        if format_ in ('png', 'svg'):
-            export_opts['page'] = {'merged': {'gap': '0pt'}}
+        command_args = cast(List[LSPAny], [filename, extra_opts, actions])
         command: ExecuteCommandParams = {
             'command': command_name,
-            'arguments': [filename, cast(LSPAny, export_opts)]
+            'arguments': command_args
         }
-        session.execute_command(command)
+        session.execute_command(command).then(self._on_export_result_async)
 
     def input(self, args: dict) -> sublime_plugin.ListInputHandler | None:
         if 'format' not in args:
             return ExportFormatInputHandler()
 
+    def _on_export_result_async(self, response: ExportResponse) -> None:
+        pass
+
     def _status_message(self, msg: str) -> None:
-        window = self.view.window()
-        if window:
+        if window := self.view.window():
             window.status_message(msg)
 
 
