@@ -10,18 +10,18 @@ from LSP.plugin import Session
 from LSP.plugin import unregister_plugin
 from LSP.plugin.core.logging import debug
 from LSP.plugin.core.open import open_externally
-from LSP.plugin.core.protocol import DocumentUri
-from LSP.plugin.core.protocol import ExecuteCommandParams
-from LSP.plugin.core.protocol import LSPAny
-from LSP.plugin.core.protocol import Range
-from LSP.plugin.core.protocol import TextDocumentIdentifier
-from LSP.plugin.core.protocol import TextDocumentPositionParams
-from LSP.plugin.core.protocol import TextEdit
 from LSP.plugin.core.typing import NotRequired, StrEnum
 from LSP.plugin.core.typing import cast
 from LSP.plugin.core.views import first_selection_region
 from LSP.plugin.core.views import region_to_range
 from LSP.plugin.core.views import text_document_identifier
+from LSP.protocol import DocumentUri
+from LSP.protocol import ExecuteCommandParams
+from LSP.protocol import LSPAny
+from LSP.protocol import Range
+from LSP.protocol import TextDocumentIdentifier
+from LSP.protocol import TextDocumentPositionParams
+from LSP.protocol import TextEdit
 from functools import partial
 from typing import Callable, List, Literal, Tuple, TypedDict, Union
 from urllib.parse import unquote, urlparse
