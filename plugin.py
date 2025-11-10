@@ -7,12 +7,14 @@ from LSP.plugin import register_plugin
 from LSP.plugin import Request
 from LSP.plugin import Response
 from LSP.plugin import Session
+from LSP.plugin import SessionViewProtocol
 from LSP.plugin import unregister_plugin
 from LSP.plugin.core.logging import debug
 from LSP.plugin.core.open import open_externally
 from LSP.plugin.core.typing import NotRequired, StrEnum
 from LSP.plugin.core.typing import cast
 from LSP.plugin.core.views import first_selection_region
+from LSP.plugin.core.views import position
 from LSP.plugin.core.views import region_to_range
 from LSP.plugin.core.views import text_document_identifier
 from LSP.protocol import DocumentUri
@@ -20,7 +22,6 @@ from LSP.protocol import ExecuteCommandParams
 from LSP.protocol import LSPAny
 from LSP.protocol import Range
 from LSP.protocol import TextDocumentIdentifier
-from LSP.protocol import TextDocumentPositionParams
 from LSP.protocol import TextEdit
 from functools import partial
 from typing import Callable, List, Literal, Tuple, TypedDict, Union
@@ -257,31 +258,27 @@ class LspTinymistPlugin(AbstractPlugin):
     def _on_preview_result(self, params: PreviewResult) -> None:
         pass
 
-    def on_pre_send_request_async(self, request_id: int, request: Request) -> None:
-        # Hack into document highlight request to send an additional request to scroll the browser preview when the
-        # caret position changes.
-        if self.preview_task_id and request.method == 'textDocument/documentHighlight':
-            sublime.set_timeout_async(lambda: self.on_caret_moved_async(request.params))
-
-    def on_caret_moved_async(self, position_params: TextDocumentPositionParams) -> None:
-        session = self.weaksession()
-        if not session:
+    def on_selection_modified_async(self, session_view: SessionViewProtocol) -> None:
+        if not self.preview_task_id:
             return
-        scheme, path = parse_uri(position_params['textDocument']['uri'])
-        if scheme != 'file':
-            return
-        position = position_params['position']
-        params: PreviewScrollParams = {
-            'event': 'panelScrollTo',
-            'filepath': path,
-            'line': position['line'],
-            'character': position['character']
-        }
-        command: ExecuteCommandParams = {
-            'command': 'tinymist.scrollPreview',
-            'arguments': [self.preview_task_id, cast(LSPAny, params)]
-        }
-        session.execute_command(command)
+        view = session_view.view
+        if filepath := view.file_name():
+            try:
+                point = view.sel()[0].b
+            except IndexError:
+                return
+            pos = position(view, point)
+            params: PreviewScrollParams = {
+                'event': 'panelScrollTo',
+                'filepath': filepath,
+                'line': pos['line'],
+                'character': pos['character']
+            }
+            command: ExecuteCommandParams = {
+                'command': 'tinymist.scrollPreview',
+                'arguments': [self.preview_task_id, cast(LSPAny, params)]
+            }
+            session_view.session.execute_command(command)
 
     def on_open_uri_async(self, uri: DocumentUri, callback: Callable[[str | None, str, str], None]) -> bool:
         parsed = urlparse(uri)
@@ -290,8 +287,7 @@ class LspTinymistPlugin(AbstractPlugin):
             scheme, filename = parse_uri(unquote(parsed.query).strip('[]"'))
             if scheme == 'file':
                 if command == 'tinymist.openInternal':
-                    session = self.weaksession()
-                    if session:
+                    if session := self.weaksession():
                         session.window.open_file(filename)
                 elif command == 'tinymist.openExternal':
                     open_externally(filename, True)
