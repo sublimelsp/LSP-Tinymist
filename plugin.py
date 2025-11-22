@@ -33,7 +33,7 @@ import sublime_plugin
 
 
 PACKAGE_NAME = 'LSP-Tinymist'
-VERSION = 'v0.14.0'
+VERSION = 'v0.14.2'
 TARBALL_NAME = {
     'linux-arm64': 'tinymist-aarch64-unknown-linux-gnu.tar.gz',
     'linux-x64': 'tinymist-x86_64-unknown-linux-gnu.tar.gz',
@@ -105,14 +105,30 @@ class OnEnterParams(TypedDict):
 
 
 class PdfStandard(StrEnum):
+    V_1_4 = '1.4'  # PDF 1.4
+    V_1_5 = '1.5'  # PDF 1.5
+    V_1_6 = '1.6'  # PDF 1.6
     V_1_7 = '1.7'  # PDF 1.7
+    V_2_0 = '2.0'  # PDF 2.0
+    A_1b = 'a-1b'  # PDF/A-1b
+    A_1a = 'a-1a'  # PDF/A-1a
     A_2b = 'a-2b'  # PDF/A-2b
+    A_2u = 'a-2u'  # PDF/A-2u
+    A_2a = 'a-2a'  # PDF/A-2a
     A_3b = 'a-3b'  # PDF/A-3b
+    A_3u = 'a-3u'  # PDF/A-3u
+    A_3a = 'a-3a'  # PDF/A-3a
+    A_4 = 'a-4'    # PDF/A-4
+    A_4f = 'a-4f'  # PDF/A-4f
+    A_4e = 'a-4e'  # PDF/A-4e
+    Ua_1 = 'ua-1'  # PDF/UA-1
 
 
 class ExportPdfOpts(TypedDict):
     pages: NotRequired[list[str]]
     creationTimestamp: NotRequired[str | None]
+    pdfStandard: NotRequired[PdfStandard]
+    noPdfTags: NotRequired[bool]
 
 
 class PageMergeOpts(TypedDict):
@@ -220,13 +236,13 @@ class LspTinymistPlugin(AbstractPlugin):
 
     def on_server_response_async(self, method: str, response: Response) -> None:
         if method == 'textDocument/codeLens' and response.result:
+            del response.result[4]  # More
             del response.result[0]  # Profile
 
     def on_pre_server_command(self, command: ExecuteCommandParams, done_callback: Callable[[], None]) -> bool:
         command_name = command['command']
         if command_name == 'tinymist.runCodeLens':
-            args = command.get('arguments')
-            if args:
+            if args := command.get('arguments'):
                 action = cast(str, args[0])
                 sublime.set_timeout(lambda: self._on_code_lens(action))
             sublime.set_timeout(done_callback)
@@ -248,12 +264,12 @@ class LspTinymistPlugin(AbstractPlugin):
                     'arguments': [['--task-id', self.preview_task_id] + session.config.settings.get('preview.browsing.args')]
                 }
                 session.execute_command(command).then(self._on_preview_result)
+            elif action == 'export':
+                if view := session.window.active_view():
+                    view.run_command('lsp_tinymist_export')
             elif action == 'export-pdf':
                 if view := session.window.active_view():
                     view.run_command('lsp_tinymist_export', {'format': 'pdf'})
-            elif action == 'more':
-                if view := session.window.active_view():
-                    view.run_command('lsp_tinymist_export')
 
     def _on_preview_result(self, params: PreviewResult) -> None:
         pass
