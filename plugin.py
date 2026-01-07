@@ -33,7 +33,7 @@ import sublime_plugin
 
 
 PACKAGE_NAME = 'LSP-Tinymist'
-VERSION = 'v0.14.6'
+VERSION = 'v0.14.8'
 TARBALL_NAME = {
     'linux-arm64': 'tinymist-aarch64-unknown-linux-gnu.tar.gz',
     'linux-x64': 'tinymist-x86_64-unknown-linux-gnu.tar.gz',
