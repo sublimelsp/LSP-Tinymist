@@ -11,6 +11,7 @@ from LSP.plugin import SessionViewProtocol
 from LSP.plugin import unregister_plugin
 from LSP.plugin.core.logging import debug
 from LSP.plugin.core.open import open_externally
+from LSP.plugin.core.protocol import Error
 from LSP.plugin.core.typing import NotRequired, StrEnum
 from LSP.plugin.core.typing import cast
 from LSP.plugin.core.views import first_selection_region
@@ -33,7 +34,7 @@ import sublime_plugin
 
 
 PACKAGE_NAME = 'LSP-Tinymist'
-VERSION = 'v0.14.8'
+VERSION = 'v0.14.10'
 TARBALL_NAME = {
     'linux-arm64': 'tinymist-aarch64-unknown-linux-gnu.tar.gz',
     'linux-x64': 'tinymist-x86_64-unknown-linux-gnu.tar.gz',
@@ -263,7 +264,7 @@ class LspTinymistPlugin(AbstractPlugin):
                     'command': 'tinymist.doStartBrowsingPreview',
                     'arguments': [['--task-id', self.preview_task_id] + session.config.settings.get('preview.browsing.args')]
                 }
-                session.execute_command(command).then(self._on_preview_result)
+                session.execute_command(command).then(self._on_preview_result)  # pyright: ignore[reportArgumentType]
             elif action == 'export':
                 if view := session.window.active_view():
                     view.run_command('lsp_tinymist_export')
@@ -271,7 +272,7 @@ class LspTinymistPlugin(AbstractPlugin):
                 if view := session.window.active_view():
                     view.run_command('lsp_tinymist_export', {'format': 'pdf'})
 
-    def _on_preview_result(self, params: PreviewResult) -> None:
+    def _on_preview_result(self, params: PreviewResult | Error) -> None:
         pass
 
     def on_selection_modified_async(self, session_view: SessionViewProtocol) -> None:
@@ -385,13 +386,13 @@ class LspTinymistExportCommand(LspTextCommand):
             'command': command_name,
             'arguments': command_args
         }
-        session.execute_command(command).then(self._on_export_result_async)
+        session.execute_command(command).then(self._on_export_result_async)  # pyright: ignore[reportArgumentType]
 
     def input(self, args: dict) -> sublime_plugin.ListInputHandler | None:
         if 'format' not in args:
             return ExportFormatInputHandler()
 
-    def _on_export_result_async(self, response: ExportResponse) -> None:
+    def _on_export_result_async(self, response: ExportResponse | Error) -> None:
         pass
 
     def _status_message(self, msg: str) -> None:
