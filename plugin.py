@@ -236,7 +236,7 @@ class LspTinymistPlugin(AbstractPlugin):
             file.write(VERSION)
 
     def on_server_response_async(self, method: str, response: Response) -> None:
-        if method == 'textDocument/codeLens' and response.result:
+        if method == 'textDocument/codeLens' and isinstance(response.result, list) and len(response.result) == 5:
             del response.result[4]  # More
             del response.result[0]  # Profile
 

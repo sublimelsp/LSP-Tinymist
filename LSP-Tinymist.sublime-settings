@@ -100,7 +100,8 @@
         // Enable or disable semantic highlighting.
         // Valid values: "enable", "disable"
         "semanticTokens": "enable",
-        // Enable or disable "Preview", "Export", "PDF" code lenses.
+        // Enable or disable "Preview", "Export", "PDF" code lenses at the top of a file.
+        // This setting should be kept enabled for now.
         "supportClientCodelens": true,
         // Configure whether to enable syntax-only mode for the language server.
         // In syntax-only mode, the language server will only provide syntax checking and basic
