@@ -12,12 +12,12 @@ from LSP.plugin import unregister_plugin
 from LSP.plugin.core.logging import debug
 from LSP.plugin.core.open import open_externally
 from LSP.plugin.core.protocol import Error
-from LSP.plugin.core.typing import NotRequired, StrEnum
-from LSP.plugin.core.typing import cast
+from LSP.plugin.core.typing import StrEnum
 from LSP.plugin.core.views import first_selection_region
 from LSP.plugin.core.views import position
 from LSP.plugin.core.views import region_to_range
 from LSP.plugin.core.views import text_document_identifier
+from LSP.protocol import CodeLens
 from LSP.protocol import DocumentUri
 from LSP.protocol import ExecuteCommandParams
 from LSP.protocol import LSPAny
@@ -25,7 +25,8 @@ from LSP.protocol import Range
 from LSP.protocol import TextDocumentIdentifier
 from LSP.protocol import TextEdit
 from functools import partial
-from typing import Callable, List, Literal, Tuple, TypedDict, Union
+from typing import Any, Callable, List, Literal, Tuple, TypedDict, Union, cast, final
+from typing_extensions import NotRequired, override
 from urllib.parse import unquote, urlparse
 from weakref import ref
 import os
@@ -183,6 +184,7 @@ def plugin_unloaded() -> None:
     unregister_plugin(LspTinymistPlugin)
 
 
+@final
 class LspTinymistPlugin(AbstractPlugin):
 
     def __init__(self, weaksession: ref[Session]) -> None:
@@ -194,10 +196,12 @@ class LspTinymistPlugin(AbstractPlugin):
         return f'preview-{self._preview_task_id}' if self._preview_task_id else ''
 
     @classmethod
+    @override
     def name(cls) -> str:
         return PACKAGE_NAME
 
     @classmethod
+    @override
     def configuration(cls) -> Tuple[sublime.Settings, str]:
         filename = f'{PACKAGE_NAME}.sublime-settings'
         filepath = f'Packages/{PACKAGE_NAME}/{filename}'
@@ -208,6 +212,7 @@ class LspTinymistPlugin(AbstractPlugin):
         return os.path.join(cls.storage_path(), PACKAGE_NAME)
 
     @classmethod
+    @override
     def additional_variables(cls) -> dict[str, str] | None:
         server_dir = cls.basedir()
         if TARBALL_NAME and TARBALL_NAME.endswith('.tar.gz'):
@@ -215,6 +220,7 @@ class LspTinymistPlugin(AbstractPlugin):
         return {'server_dir': server_dir}
 
     @classmethod
+    @override
     def needs_update_or_installation(cls) -> bool:
         try:
             with open(os.path.join(cls.basedir(), 'VERSION'), 'r') as file:
@@ -223,6 +229,7 @@ class LspTinymistPlugin(AbstractPlugin):
             return True
 
     @classmethod
+    @override
     def install_or_update(cls) -> None:
         if not TARBALL_NAME:
             debug('Prebuilt Tinymist binary is not available for this system.')
@@ -235,11 +242,15 @@ class LspTinymistPlugin(AbstractPlugin):
         with open(os.path.join(cls.basedir(), 'VERSION'), 'w') as file:
             file.write(VERSION)
 
-    def on_server_response_async(self, method: str, response: Response) -> None:
-        if method == 'textDocument/codeLens' and isinstance(response.result, list) and len(response.result) == 5:
-            del response.result[4]  # More
-            del response.result[0]  # Profile
+    @override
+    def on_server_response_async(self, method: str, response: Response[Any]) -> None:
+        if method == 'textDocument/codeLens':
+            result = cast(list[CodeLens] | None, response.result)
+            if result and len(result) == 5:
+                del result[4]  # More
+                del result[0]  # Profile
 
+    @override
     def on_pre_server_command(self, command: ExecuteCommandParams, done_callback: Callable[[], None]) -> bool:
         command_name = command['command']
         if command_name == 'tinymist.runCodeLens':
@@ -254,17 +265,16 @@ class LspTinymistPlugin(AbstractPlugin):
         if session := self.weaksession():
             if action == 'preview':
                 if self.preview_task_id:
-                    command: ExecuteCommandParams = {
+                    session.execute_command({
                         'command': 'tinymist.doKillPreview',
                         'arguments': [self.preview_task_id]
-                    }
-                    session.execute_command(command)
+                    })
                 self._preview_task_id += 1
                 command: ExecuteCommandParams = {
                     'command': 'tinymist.doStartBrowsingPreview',
                     'arguments': [['--task-id', self.preview_task_id] + session.config.settings.get('preview.browsing.args')]
                 }
-                session.execute_command(command).then(self._on_preview_result)  # pyright: ignore[reportArgumentType]
+                session.execute_command(command).then(self._on_preview_result)
             elif action == 'export':
                 if view := session.window.active_view():
                     view.run_command('lsp_tinymist_export')
@@ -272,9 +282,10 @@ class LspTinymistPlugin(AbstractPlugin):
                 if view := session.window.active_view():
                     view.run_command('lsp_tinymist_export', {'format': 'pdf'})
 
-    def _on_preview_result(self, params: PreviewResult | Error) -> None:
+    def _on_preview_result(self, params: PreviewResult | Error | None) -> None:
         pass
 
+    @override
     def on_selection_modified_async(self, session_view: SessionViewProtocol) -> None:
         if not self.preview_task_id:
             return
@@ -293,10 +304,11 @@ class LspTinymistPlugin(AbstractPlugin):
             }
             command: ExecuteCommandParams = {
                 'command': 'tinymist.scrollPreview',
-                'arguments': [self.preview_task_id, cast(LSPAny, params)]
+                'arguments': [self.preview_task_id, params]
             }
             session_view.session.execute_command(command)
 
+    @override
     def on_open_uri_async(self, uri: DocumentUri, callback: Callable[[str | None, str, str], None]) -> bool:
         parsed = urlparse(uri)
         if parsed.scheme == 'command' and parsed.path.startswith('tinymist'):
@@ -345,11 +357,13 @@ class LspTinymistPlugin(AbstractPlugin):
         pass
 
 
+@final
 class LspTinymistExportCommand(LspTextCommand):
 
     session_name = PACKAGE_NAME
 
-    def run(self, edit: sublime.Edit, format: str):  # pyright: ignore[reportIncompatibleMethodOverride]
+    @override
+    def run(self, edit: sublime.Edit, format: str):
         filename = self.view.file_name()
         if not filename:
             self._status_message('Export unavailable for unsaved file')
@@ -386,13 +400,14 @@ class LspTinymistExportCommand(LspTextCommand):
             'command': command_name,
             'arguments': command_args
         }
-        session.execute_command(command).then(self._on_export_result_async)  # pyright: ignore[reportArgumentType]
+        session.execute_command(command).then(self._on_export_result_async)
 
-    def input(self, args: dict) -> sublime_plugin.ListInputHandler | None:
+    @override
+    def input(self, args: dict[str, Any]) -> sublime_plugin.ListInputHandler | None:
         if 'format' not in args:
             return ExportFormatInputHandler()
 
-    def _on_export_result_async(self, response: ExportResponse | Error) -> None:
+    def _on_export_result_async(self, response: ExportResponse | Error | None) -> None:
         pass
 
     def _status_message(self, msg: str) -> None:
@@ -400,21 +415,26 @@ class LspTinymistExportCommand(LspTextCommand):
             window.status_message(msg)
 
 
+@final
 class ExportFormatInputHandler(sublime_plugin.ListInputHandler):
 
+    @override
     def name(self) -> str:
         return 'format'
 
+    @override
     def list_items(self) -> list[sublime.ListInputItem]:
         formats = ('PDF', 'PNG', 'SVG', 'HTML', 'Markdown', 'LaTeX')
         return [sublime.ListInputItem(f'Export as {fmt}', fmt) for fmt in formats]
 
 
+@final
 class LspTinymistOnEnterCommand(LspTextCommand):
 
     capability = 'experimental.onEnter'
     session_name = PACKAGE_NAME
 
+    @override
     def run(self, edit: sublime.Edit) -> None:
         session = self.session_by_name(self.session_name, self.capability)
         if not session:
@@ -422,11 +442,13 @@ class LspTinymistOnEnterCommand(LspTextCommand):
         selection_region = first_selection_region(self.view)
         if selection_region is None:
             return
-        params: OnEnterParams = {
-            'textDocument': text_document_identifier(self.view),
-            'range': region_to_range(self.view, selection_region)
-        }
-        request = Request('experimental/onEnter', params, self.view)
+        request: Request[OnEnterParams, Union[List[TextEdit], None]] = Request(
+            'experimental/onEnter',
+            {
+                'textDocument': text_document_identifier(self.view),
+                'range': region_to_range(self.view, selection_region)
+            },
+            self.view)
         session.send_request_async(request, partial(self._on_result, self.view.change_count()))
 
     def _on_result(self, version: int, edits: list[TextEdit] | None) -> None:
