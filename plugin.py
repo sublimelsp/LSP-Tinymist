@@ -442,7 +442,7 @@ class LspTinymistOnEnterCommand(LspTextCommand):
         selection_region = first_selection_region(self.view)
         if selection_region is None:
             return
-        request: Request[OnEnterParams, Union[List[TextEdit], None]] = Request(
+        request: Request[OnEnterParams, list[TextEdit] | None] = Request(
             'experimental/onEnter',
             {
                 'textDocument': text_document_identifier(self.view),
