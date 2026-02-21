@@ -25,7 +25,7 @@ from LSP.protocol import Range
 from LSP.protocol import TextDocumentIdentifier
 from LSP.protocol import TextEdit
 from functools import partial
-from typing import Any, Callable, List, Literal, Tuple, TypedDict, Union, cast, final
+from typing import Any, Callable, Literal, TypedDict, Union, cast, final
 from typing_extensions import NotRequired, override
 from urllib.parse import unquote, urlparse
 from weakref import ref
@@ -184,12 +184,11 @@ def plugin_unloaded() -> None:
     unregister_plugin(LspTinymistPlugin)
 
 
-@final
 class LspTinymistPlugin(AbstractPlugin):
 
     def __init__(self, weaksession: ref[Session]) -> None:
         super().__init__(weaksession)
-        self._preview_task_id = 0
+        self._preview_task_id: int = 0
 
     @property
     def preview_task_id(self) -> str:
@@ -202,7 +201,7 @@ class LspTinymistPlugin(AbstractPlugin):
 
     @classmethod
     @override
-    def configuration(cls) -> Tuple[sublime.Settings, str]:
+    def configuration(cls) -> tuple[sublime.Settings, str]:
         filename = f'{PACKAGE_NAME}.sublime-settings'
         filepath = f'Packages/{PACKAGE_NAME}/{filename}'
         return sublime.load_settings(filename), filepath
@@ -395,7 +394,7 @@ class LspTinymistExportCommand(LspTextCommand):
         else:
             self._status_message(f'Unsupported format {format}')
             return
-        command_args = cast(List[LSPAny], [filename, extra_opts, actions])
+        command_args = cast('list[LSPAny]', [filename, extra_opts, actions])
         command: ExecuteCommandParams = {
             'command': command_name,
             'arguments': command_args
