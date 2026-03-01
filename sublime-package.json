@@ -5,11 +5,8 @@
         "file_patterns": ["/LSP-Tinymist.sublime-settings"],
         "schema": {
           "$id": "sublime://settings/LSP-Tinymist",
-          "allOf": [
-            {
-              "$ref": "sublime://settings/LSP-plugin-base"
-            },
-            {
+          "definitions": {
+            "PluginConfig": {
               "properties": {
                 "settings": {
                   "additionalProperties": false,
@@ -237,9 +234,37 @@
                 }
               }
             }
+          },
+          "allOf": [
+            {
+              "$ref": "sublime://settings/LSP-plugin-base"
+            },
+            {
+              "$ref": "#/definitions/PluginConfig"
+            }
           ]
         }
-      }
+      },
+      {
+        "file_patterns": [
+          "/*.sublime-project"
+        ],
+        "schema": {
+          "properties": {
+            "settings": {
+              "properties": {
+                "LSP": {
+                  "properties": {
+                    "LSP-Tinymist": {
+                      "$ref": "sublime://settings/LSP-Tinymist#/definitions/PluginConfig"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
     ]
   }
 }
