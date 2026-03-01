@@ -307,7 +307,7 @@ class LspTinymistPlugin(AbstractPlugin):
                     if session := self.weaksession():
                         session.window.open_file(filename)
                 elif command == 'tinymist.openExternal':
-                    open_externally(filename, True)
+                    open_externally(filename)
             sublime.set_timeout_async(lambda: callback(None, '', ''))
             return True
         return False
