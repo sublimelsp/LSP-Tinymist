@@ -1,5 +1,7 @@
 from __future__ import annotations
-from .tarball import decompress, download
+
+from .lib.tarball import decompress
+from .lib.tarball import download
 from LSP.plugin import AbstractPlugin
 from LSP.plugin import LspTextCommand
 from LSP.plugin import parse_uri
