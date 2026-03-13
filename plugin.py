@@ -34,6 +34,7 @@ from typing import TypedDict
 from typing import Union
 from urllib.parse import unquote
 from urllib.parse import urlparse
+from uuid import uuid4
 from weakref import ref
 import os
 import sublime
@@ -194,11 +195,7 @@ class LspTinymistPlugin(AbstractPlugin):
 
     def __init__(self, weaksession: ref[Session]) -> None:
         super().__init__(weaksession)
-        self._preview_task_id = 0
-
-    @property
-    def preview_task_id(self) -> str:
-        return f'preview-{self._preview_task_id}' if self._preview_task_id else ''
+        self.preview_task_id: str = ''
 
     @classmethod
     def name(cls) -> str:
@@ -266,7 +263,7 @@ class LspTinymistPlugin(AbstractPlugin):
                         'arguments': [self.preview_task_id]
                     }
                     session.execute_command(command)
-                self._preview_task_id += 1
+                self.preview_task_id = str(uuid4())
                 command: ExecuteCommandParams = {
                     'command': 'tinymist.doStartBrowsingPreview',
                     'arguments': [['--task-id', self.preview_task_id] + session.config.settings.get('preview.browsing.args')]
@@ -332,16 +329,11 @@ class LspTinymistPlugin(AbstractPlugin):
         #     pass
         # file = params['path']
         page_count = params['pageCount']
-        msg = f'{page_count} page'
-        if page_count != 1:
-            msg += 's'
-        words_count = params['wordsCount']
-        if words_count is not None:
+        message = f'{page_count} page{"s"[:page_count!=1]}'
+        if words_count := params['wordsCount']:
             words = words_count['words']
-            msg += f', {words} word'
-            if words != 1:
-                msg += 's'
-        session.set_config_status_async(msg)
+            message += f', {words} word{"s"[:words!=1]}'
+        session.set_config_status_async(message)
 
     def m_tinymist_documentOutline(self, params: DocumentOutlineParams) -> None:
         # The server requests to update the document outline.
