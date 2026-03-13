@@ -14,21 +14,26 @@ from LSP.plugin import unregister_plugin
 from LSP.plugin.core.logging import debug
 from LSP.plugin.core.open import open_externally
 from LSP.plugin.core.protocol import Error
-from LSP.plugin.core.typing import NotRequired, StrEnum
-from LSP.plugin.core.typing import cast
+from LSP.plugin.core.typing import NotRequired
+from LSP.plugin.core.typing import StrEnum
 from LSP.plugin.core.views import first_selection_region
 from LSP.plugin.core.views import position
 from LSP.plugin.core.views import region_to_range
 from LSP.plugin.core.views import text_document_identifier
 from LSP.protocol import DocumentUri
 from LSP.protocol import ExecuteCommandParams
-from LSP.protocol import LSPAny
 from LSP.protocol import Range
 from LSP.protocol import TextDocumentIdentifier
 from LSP.protocol import TextEdit
 from functools import partial
-from typing import Callable, List, Literal, Tuple, TypedDict, Union
-from urllib.parse import unquote, urlparse
+from typing import Any
+from typing import Callable
+from typing import cast
+from typing import Literal
+from typing import TypedDict
+from typing import Union
+from urllib.parse import unquote
+from urllib.parse import urlparse
 from weakref import ref
 import os
 import sublime
@@ -200,7 +205,7 @@ class LspTinymistPlugin(AbstractPlugin):
         return PACKAGE_NAME
 
     @classmethod
-    def configuration(cls) -> Tuple[sublime.Settings, str]:
+    def configuration(cls) -> tuple[sublime.Settings, str]:
         filename = f'{PACKAGE_NAME}.sublime-settings'
         filepath = f'Packages/{PACKAGE_NAME}/{filename}'
         return sublime.load_settings(filename), filepath
@@ -295,7 +300,7 @@ class LspTinymistPlugin(AbstractPlugin):
             }
             command: ExecuteCommandParams = {
                 'command': 'tinymist.scrollPreview',
-                'arguments': [self.preview_task_id, cast(LSPAny, params)]
+                'arguments': [self.preview_task_id, params]
             }
             session_view.session.execute_command(command)
 
@@ -351,7 +356,7 @@ class LspTinymistExportCommand(LspTextCommand):
 
     session_name = PACKAGE_NAME
 
-    def run(self, edit: sublime.Edit, format: str):  # pyright: ignore[reportIncompatibleMethodOverride]
+    def run(self, edit: sublime.Edit, format: str) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
         filename = self.view.file_name()
         if not filename:
             self._status_message('Export unavailable for unsaved file')
@@ -383,14 +388,13 @@ class LspTinymistExportCommand(LspTextCommand):
         else:
             self._status_message(f'Unsupported format {format}')
             return
-        command_args = cast(List[LSPAny], [filename, extra_opts, actions])
         command: ExecuteCommandParams = {
             'command': command_name,
-            'arguments': command_args
+            'arguments': [filename, extra_opts, actions]
         }
         session.execute_command(command).then(self._on_export_result_async)  # pyright: ignore[reportArgumentType]
 
-    def input(self, args: dict) -> sublime_plugin.ListInputHandler | None:
+    def input(self, args: dict[str, Any]) -> sublime_plugin.ListInputHandler | None:
         if 'format' not in args:
             return ExportFormatInputHandler()
 
