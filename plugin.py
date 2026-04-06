@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from .lib.tarball import decompress
 from .lib.tarball import download
+from collections.abc import Callable
+from functools import partial
 from LSP.plugin import AbstractPlugin
 from LSP.plugin import LspTextCommand
 from LSP.plugin import parse_uri
@@ -14,7 +16,6 @@ from LSP.plugin import unregister_plugin
 from LSP.plugin.core.logging import debug
 from LSP.plugin.core.open import open_externally
 from LSP.plugin.core.protocol import Error
-from LSP.plugin.core.typing import NotRequired
 from LSP.plugin.core.typing import StrEnum
 from LSP.plugin.core.views import first_selection_region
 from LSP.plugin.core.views import position
@@ -25,13 +26,12 @@ from LSP.protocol import ExecuteCommandParams
 from LSP.protocol import Range
 from LSP.protocol import TextDocumentIdentifier
 from LSP.protocol import TextEdit
-from functools import partial
 from typing import Any
-from typing import Callable
 from typing import cast
 from typing import Literal
 from typing import TypedDict
 from typing import Union
+from typing_extensions import NotRequired
 from urllib.parse import unquote
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -39,7 +39,6 @@ from weakref import ref
 import os
 import sublime
 import sublime_plugin
-
 
 PACKAGE_NAME = 'LSP-Tinymist'
 VERSION = 'v0.14.16'
@@ -102,7 +101,7 @@ class PreviewDisposeParams(TypedDict):
 
 
 class PreviewScrollParams(TypedDict):
-    event: Literal['changeCursorPosition'] | Literal['panelScrollTo']
+    event: Literal['changeCursorPosition', 'panelScrollTo']
     filepath: str
     line: int
     character: int
