@@ -40,7 +40,6 @@ import sublime
 import sublime_plugin
 
 
-PACKAGE_NAME = 'LSP-Tinymist'
 VERSION = 'v0.14.16'
 TARBALL_NAME = {
     'linux-arm64': 'tinymist-aarch64-unknown-linux-gnu.tar.gz',
@@ -324,8 +323,6 @@ class LspTinymistPlugin(LspPlugin):
 
 class LspTinymistExportCommand(LspTextCommand):
 
-    session_name = PACKAGE_NAME
-
     def run(self, edit: sublime.Edit, format: str) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
         filename = self.view.file_name()
         if not filename:
@@ -389,7 +386,6 @@ class ExportFormatInputHandler(sublime_plugin.ListInputHandler):
 class LspTinymistOnEnterCommand(LspTextCommand):
 
     capability = 'experimental.onEnter'
-    session_name = PACKAGE_NAME
 
     def run(self, edit: sublime.Edit) -> None:
         session = self.session_by_name(self.session_name, self.capability)
