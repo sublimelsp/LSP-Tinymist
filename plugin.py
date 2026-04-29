@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from .lib.tarball import decompress
 from .lib.tarball import download
-from LSP.plugin import AbstractPlugin
+from LSP.plugin import command_handler
+from LSP.plugin import LspPlugin
 from LSP.plugin import LspTextCommand
+from LSP.plugin import notification_handler
+from LSP.plugin import OnPreStartContext
 from LSP.plugin import parse_uri
-from LSP.plugin import register_plugin
+from LSP.plugin import PluginStartError
+from LSP.plugin import Promise
 from LSP.plugin import Request
-from LSP.plugin import Response
-from LSP.plugin import Session
+from LSP.plugin import ServerResponse
 from LSP.plugin import SessionViewProtocol
-from LSP.plugin import unregister_plugin
-from LSP.plugin.core.logging import debug
+from LSP.plugin import uri_handler
 from LSP.plugin.core.open import open_externally
 from LSP.plugin.core.protocol import Error
 from LSP.plugin.core.typing import NotRequired
@@ -27,7 +29,6 @@ from LSP.protocol import TextDocumentIdentifier
 from LSP.protocol import TextEdit
 from functools import partial
 from typing import Any
-from typing import Callable
 from typing import cast
 from typing import Literal
 from typing import TypedDict
@@ -35,8 +36,6 @@ from typing import Union
 from urllib.parse import unquote
 from urllib.parse import urlparse
 from uuid import uuid4
-from weakref import ref
-import os
 import sublime
 import sublime_plugin
 
@@ -184,78 +183,98 @@ class ExportResponse(TypedDict):
 
 
 def plugin_loaded() -> None:
-    register_plugin(LspTinymistPlugin)
+    LspTinymistPlugin.register()
 
 
 def plugin_unloaded() -> None:
-    unregister_plugin(LspTinymistPlugin)
+    LspTinymistPlugin.unregister()
 
 
-class LspTinymistPlugin(AbstractPlugin):
-
-    def __init__(self, weaksession: ref[Session]) -> None:
-        super().__init__(weaksession)
-        self.preview_task_id: str = ''
+class LspTinymistPlugin(LspPlugin):
 
     @classmethod
-    def name(cls) -> str:
-        return PACKAGE_NAME
+    def on_pre_start_async(cls, context: OnPreStartContext) -> None:
+        if not TARBALL_NAME:
+            raise PluginStartError('Prebuilt Tinymist binary is not available for this system.')
+        server_path = cls.plugin_storage_path
+        if TARBALL_NAME.endswith('.tar.gz'):
+            server_path /= TARBALL_NAME.split('.')[0]
+        server_dir = str(server_path)
+        context.variables['server_dir'] = server_dir
+        if cls.needs_installation():
+            download_url = f'https://github.com/Myriad-Dreamin/tinymist/releases/download/{VERSION}/{TARBALL_NAME}'
+            tarball_path = str(cls.plugin_storage_path / TARBALL_NAME)
+            download(download_url, tarball_path)
+            decompress(tarball_path, server_dir)
+            (cls.plugin_storage_path / 'VERSION').write_text(VERSION)
 
     @classmethod
-    def configuration(cls) -> tuple[sublime.Settings, str]:
-        filename = f'{PACKAGE_NAME}.sublime-settings'
-        filepath = f'Packages/{PACKAGE_NAME}/{filename}'
-        return sublime.load_settings(filename), filepath
-
-    @classmethod
-    def basedir(cls) -> str:
-        return os.path.join(cls.storage_path(), PACKAGE_NAME)
-
-    @classmethod
-    def additional_variables(cls) -> dict[str, str] | None:
-        server_dir = cls.basedir()
-        if TARBALL_NAME and TARBALL_NAME.endswith('.tar.gz'):
-            server_dir = os.path.join(server_dir, TARBALL_NAME.split('.')[0])
-        return {'server_dir': server_dir}
-
-    @classmethod
-    def needs_update_or_installation(cls) -> bool:
+    def needs_installation(cls) -> bool:
         try:
-            with open(os.path.join(cls.basedir(), 'VERSION'), 'r') as file:
-                return file.read().strip() != VERSION
+            return (cls.plugin_storage_path / 'VERSION').read_text().strip() != VERSION
         except OSError:
             return True
 
-    @classmethod
-    def install_or_update(cls) -> None:
-        if not TARBALL_NAME:
-            debug('Prebuilt Tinymist binary is not available for this system.')
-            return
-        download_url = f'https://github.com/Myriad-Dreamin/tinymist/releases/download/{VERSION}/{TARBALL_NAME}'
-        server_dir = cls.basedir()
-        tarball_path = os.path.join(server_dir, TARBALL_NAME)
-        download(download_url, tarball_path)
-        decompress(tarball_path, server_dir)
-        with open(os.path.join(cls.basedir(), 'VERSION'), 'w') as file:
-            file.write(VERSION)
+    def on_initialize_async(self) -> None:
+        self.preview_task_id: str = ''
 
-    def on_server_response_async(self, method: str, response: Response) -> None:
-        if method == 'textDocument/codeLens' and isinstance(response.result, list) and len(response.result) == 5:
-            del response.result[4]  # More
-            del response.result[0]  # Profile
+    def on_server_response_async(self, response: ServerResponse) -> None:
+        if response['method'] == 'textDocument/codeLens':
+            if (result := response['result']) and len(result) == 5:
+                del result[4]  # More
+                del result[0]  # Profile
 
-    def on_pre_server_command(self, command: ExecuteCommandParams, done_callback: Callable[[], None]) -> bool:
-        command_name = command['command']
-        if command_name == 'tinymist.runCodeLens':
-            if args := command.get('arguments'):
-                action = cast(str, args[0])
-                sublime.set_timeout(lambda: self._on_code_lens(action))
-            sublime.set_timeout(done_callback)
-            return True
-        return False
-
-    def _on_code_lens(self, action: str) -> None:
+    @notification_handler('tinymist/compileStatus')
+    def on_compile_status(self, params: CompileStatusParams) -> None:
         if session := self.weaksession():
+            status = params['status']
+            if status == CompileStatus.COMPILING:
+                return  # Don't update the status message to prevent flickering from volatile page count reports.
+            # elif status == CompileStatus.COMPILE_SUCCESS:
+            #     pass
+            # elif status == CompileStatus.COMPILE_ERROR:
+            #     pass
+            # file = params['path']
+            page_count = params['pageCount']
+            message = f'{page_count} page{"s"[:page_count!=1]}'
+            if words_count := params['wordsCount']:
+                words = words_count['words']
+                message += f', {words} word{"s"[:words!=1]}'
+            session.set_config_status_async(message)
+
+    @notification_handler('tinymist/documentOutline')
+    def on_document_outline(self, params: DocumentOutlineParams) -> None:
+        # The server requests to update the document outline.
+        pass
+
+    @notification_handler('tinymist/previewDispose')
+    def on_preview_dispose(self, params: PreviewDisposeParams) -> None:
+        # The server requests to dispose (clean up) a preview task when it is no longer needed.
+        pass
+
+    @uri_handler('command')
+    def on_open_command_uri(self, uri: DocumentUri, flags: sublime.NewFileFlags) -> Promise[sublime.Sheet | None]:
+        parsed = urlparse(uri)
+        scheme, filename = parse_uri(unquote(parsed.query).strip('[]"'))
+        if scheme != 'file':
+            return Promise.resolve(None)
+        command = parsed.path
+        if command == 'tinymist.openInternal':
+            if session := self.weaksession():
+                view = session.window.open_file(filename, flags)
+                # Note that in case of an image file the returned View will not be valid and the only way to get the
+                # Sheet seems to be via Window.active_sheet().
+                sheet = view.sheet() if view.is_valid() else session.window.active_sheet()
+                return Promise.resolve(sheet)
+            return Promise.resolve(None)
+        if command == 'tinymist.openExternal':
+            open_externally(filename)
+        return Promise.resolve(None)
+
+    @command_handler('tinymist.runCodeLens')
+    def on_run_code_lens(self, arguments: list[str] | None) -> Promise[None]:
+        if arguments and (session := self.weaksession()):
+            action = arguments[0]
             if action == 'preview':
                 if self.preview_task_id:
                     command: ExecuteCommandParams = {
@@ -275,6 +294,7 @@ class LspTinymistPlugin(AbstractPlugin):
             elif action == 'export-pdf':
                 if view := session.window.active_view():
                     view.run_command('lsp_tinymist_export', {'format': 'pdf'})
+        return Promise.resolve(None)
 
     def _on_preview_result(self, params: PreviewResult | Error) -> None:
         pass
@@ -300,48 +320,6 @@ class LspTinymistPlugin(AbstractPlugin):
                 'arguments': [self.preview_task_id, params]
             }
             session_view.session.execute_command(command)
-
-    def on_open_uri_async(self, uri: DocumentUri, callback: Callable[[str | None, str, str], None]) -> bool:
-        parsed = urlparse(uri)
-        if parsed.scheme == 'command' and parsed.path.startswith('tinymist'):
-            command = parsed.path
-            scheme, filename = parse_uri(unquote(parsed.query).strip('[]"'))
-            if scheme == 'file':
-                if command == 'tinymist.openInternal':
-                    if session := self.weaksession():
-                        session.window.open_file(filename)
-                elif command == 'tinymist.openExternal':
-                    open_externally(filename)
-            sublime.set_timeout_async(lambda: callback(None, '', ''))
-            return True
-        return False
-
-    def m_tinymist_compileStatus(self, params: CompileStatusParams) -> None:
-        session = self.weaksession()
-        if not session:
-            return
-        status = params['status']
-        if status == CompileStatus.COMPILING:
-            return  # Don't update the status message to prevent flickering from volatile page count reports.
-        # elif status == CompileStatus.COMPILE_SUCCESS:
-        #     pass
-        # elif status == CompileStatus.COMPILE_ERROR:
-        #     pass
-        # file = params['path']
-        page_count = params['pageCount']
-        message = f'{page_count} page{"s"[:page_count!=1]}'
-        if words_count := params['wordsCount']:
-            words = words_count['words']
-            message += f', {words} word{"s"[:words!=1]}'
-        session.set_config_status_async(message)
-
-    def m_tinymist_documentOutline(self, params: DocumentOutlineParams) -> None:
-        # The server requests to update the document outline.
-        pass
-
-    def m_tinymist_preview_dispose(self, params: PreviewDisposeParams) -> None:
-        # The server requests to dispose (clean up) a preview task when it is no longer needed.
-        pass
 
 
 class LspTinymistExportCommand(LspTextCommand):
