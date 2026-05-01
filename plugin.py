@@ -16,6 +16,7 @@ from LSP.plugin import unregister_plugin
 from LSP.plugin.core.logging import debug
 from LSP.plugin.core.open import open_externally
 from LSP.plugin.core.protocol import Error
+from LSP.plugin.core.typing import NotRequired
 from LSP.plugin.core.typing import StrEnum
 from LSP.plugin.core.views import first_selection_region
 from LSP.plugin.core.views import position
@@ -31,7 +32,6 @@ from typing import cast
 from typing import Literal
 from typing import TypedDict
 from typing import Union
-from typing_extensions import NotRequired
 from urllib.parse import unquote
 from urllib.parse import urlparse
 from uuid import uuid4
