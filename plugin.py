@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .lib.tarball import decompress
 from .lib.tarball import download
+from functools import partial
 from LSP.plugin import command_handler
 from LSP.plugin import LspPlugin
 from LSP.plugin import LspTextCommand
@@ -27,7 +28,6 @@ from LSP.protocol import ExecuteCommandParams
 from LSP.protocol import Range
 from LSP.protocol import TextDocumentIdentifier
 from LSP.protocol import TextEdit
-from functools import partial
 from typing import Any
 from typing import cast
 from typing import Literal
@@ -40,7 +40,7 @@ import sublime
 import sublime_plugin
 
 
-VERSION = 'v0.14.16'
+VERSION = 'v0.14.18'
 TARBALL_NAME = {
     'linux-arm64': 'tinymist-aarch64-unknown-linux-gnu.tar.gz',
     'linux-x64': 'tinymist-x86_64-unknown-linux-gnu.tar.gz',
@@ -100,7 +100,7 @@ class PreviewDisposeParams(TypedDict):
 
 
 class PreviewScrollParams(TypedDict):
-    event: Literal['changeCursorPosition'] | Literal['panelScrollTo']
+    event: Literal['changeCursorPosition', 'panelScrollTo']
     filepath: str
     line: int
     character: int
