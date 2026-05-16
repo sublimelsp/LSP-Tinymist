@@ -199,19 +199,13 @@ class LspTinymistPlugin(LspPlugin):
             server_path /= TARBALL_NAME.split('.')[0]
         server_dir = str(server_path)
         context.variables['server_dir'] = server_dir
-        if cls.needs_installation():
+        version_file = cls.plugin_storage_path / 'VERSION'
+        if not version_file.is_file() or version_file.read_text().strip() != VERSION:
             download_url = f'https://github.com/Myriad-Dreamin/tinymist/releases/download/{VERSION}/{TARBALL_NAME}'
             tarball_path = str(cls.plugin_storage_path / TARBALL_NAME)
             download(download_url, tarball_path)
             decompress(tarball_path, server_dir)
-            (cls.plugin_storage_path / 'VERSION').write_text(VERSION)
-
-    @classmethod
-    def needs_installation(cls) -> bool:
-        try:
-            return (cls.plugin_storage_path / 'VERSION').read_text().strip() != VERSION
-        except OSError:
-            return True
+            version_file.write_text(VERSION)
 
     def on_initialized_async(self) -> None:
         self.preview_task_id: str = ''
