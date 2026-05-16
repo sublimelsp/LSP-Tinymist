@@ -214,7 +214,7 @@ class LspTinymistPlugin(LspPlugin):
         except OSError:
             return True
 
-    def on_initialize_async(self) -> None:
+    def on_initialized_async(self) -> None:
         self.preview_task_id: str = ''
 
     def on_server_response_async(self, response: ServerResponse) -> None:
