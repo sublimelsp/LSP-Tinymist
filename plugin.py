@@ -39,7 +39,6 @@ from uuid import uuid4
 import sublime
 import sublime_plugin
 
-
 VERSION = 'v0.14.18'
 TARBALL_NAME = {
     'linux-arm64': 'tinymist-aarch64-unknown-linux-gnu.tar.gz',
