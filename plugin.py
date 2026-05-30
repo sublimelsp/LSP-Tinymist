@@ -26,6 +26,7 @@ from LSP.plugin.core.views import text_document_identifier
 from LSP.protocol import DocumentUri
 from LSP.protocol import ExecuteCommandParams
 from LSP.protocol import Range
+from LSP.protocol import SnippetTextEdit
 from LSP.protocol import TextDocumentIdentifier
 from LSP.protocol import TextEdit
 from typing import Any
@@ -392,14 +393,17 @@ class LspTinymistOnEnterCommand(LspTextCommand):
             'range': region_to_range(self.view, selection_region)
         }
         request = Request('experimental/onEnter', params, self.view)
-        session.send_request_async(request, partial(self._on_result, self.view.change_count()))
+        session.send_request(request, partial(self._on_result_async, self.view.change_count()))
 
-    def _on_result(self, version: int, edits: list[TextEdit] | None) -> None:
-        if edits:
-            self.view.run_command('lsp_apply_document_edit', {
-                'changes': edits,
-                'required_view_version': version,
-                'process_placeholders': True
-            })
-        elif version == self.view.change_count():
+    def _on_result_async(self, version: int, text_edits: list[TextEdit] | None) -> None:
+        if version != self.view.change_count():
+            return
+        if text_edits:
+            # Convert custom TextEdit with placeholder into SnippetTextEdit
+            edits: list[SnippetTextEdit] = [
+                {'range': text_edit['range'], 'snippet': {'kind': 'snippet', 'value': text_edit['newText']}}
+                for text_edit in text_edits
+            ]
+            self.view.run_command('lsp_apply_text_document_edit', {'edits': edits})
+        else:
             self.view.run_command('insert', {'characters': '\n'})
