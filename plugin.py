@@ -17,6 +17,7 @@ from LSP.plugin import SessionViewProtocol
 from LSP.plugin import uri_handler
 from LSP.plugin.core.open import open_externally
 from LSP.plugin.core.protocol import Error
+from LSP.plugin.core.protocol import ResponseError
 from LSP.plugin.core.typing import NotRequired
 from LSP.plugin.core.typing import StrEnum
 from LSP.plugin.core.views import first_selection_region
@@ -382,28 +383,45 @@ class LspTinymistOnEnterCommand(LspTextCommand):
     capability = 'experimental.onEnter'
 
     def run(self, edit: sublime.Edit) -> None:
+        sublime.set_timeout_async(self._run_async)
+
+    def _run_async(self) -> None:
         session = self.session_by_name(self.session_name, self.capability)
         if not session:
             return
         selection_region = first_selection_region(self.view)
         if selection_region is None:
             return
+        session_view = session.session_view_for_view_async(self.view)
+        if not session_view:
+            return
+        session_view.session_buffer.purge_changes_async(self.view)  # pyright: ignore[reportAttributeAccessIssue]
         params: OnEnterParams = {
             'textDocument': text_document_identifier(self.view),
             'range': region_to_range(self.view, selection_region)
         }
-        request = Request('experimental/onEnter', params, self.view)
-        session.send_request(request, partial(self._on_result_async, self.view.change_count()))
+        version = self.view.change_count()
+        session.send_request_async(
+            Request('experimental/onEnter', params, self.view),
+            partial(self._on_result_async, version),
+            partial(self._on_error_async, version)
+        )
 
     def _on_result_async(self, version: int, text_edits: list[TextEdit] | None) -> None:
         if version != self.view.change_count():
             return
         if text_edits:
             # Convert custom TextEdit with placeholder into SnippetTextEdit
-            edits: list[SnippetTextEdit] = [
-                {'range': text_edit['range'], 'snippet': {'kind': 'snippet', 'value': text_edit['newText']}}
+            edits: list[TextEdit | SnippetTextEdit] = [
+                {'range': text_edit['range'], 'snippet': {'kind': 'snippet', 'value': value}}
+                if '$0' in (value := text_edit['newText']) else text_edit
                 for text_edit in text_edits
             ]
             self.view.run_command('lsp_apply_text_document_edit', {'edits': edits})
         else:
             self.view.run_command('insert', {'characters': '\n'})
+
+    def _on_error_async(self, version: int, error: ResponseError) -> None:
+        if version != self.view.change_count():
+            return
+        self.view.run_command('insert', {'characters': '\n'})
