@@ -29,4 +29,8 @@
         "caption": "LSP-Tinymist: Export…",
         "command": "lsp_tinymist_export"
     },
+    {
+        "caption": "LSP-Tinymist: Open Browser Preview",
+        "command": "lsp_tinymist_preview"
+    },
 ]

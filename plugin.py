@@ -6,6 +6,7 @@ from functools import partial
 from LSP.plugin import command_handler
 from LSP.plugin import LspPlugin
 from LSP.plugin import LspTextCommand
+from LSP.plugin import LspWindowCommand
 from LSP.plugin import notification_handler
 from LSP.plugin import OnPreStartContext
 from LSP.plugin import parse_uri
@@ -270,18 +271,7 @@ class LspTinymistPlugin(LspPlugin):
         if arguments and (session := self.weaksession()):
             action = arguments[0]
             if action == 'preview':
-                if self.preview_task_id:
-                    command: ExecuteCommandParams = {
-                        'command': 'tinymist.doKillPreview',
-                        'arguments': [self.preview_task_id]
-                    }
-                    session.execute_command(command)
-                self.preview_task_id = str(uuid4())
-                command: ExecuteCommandParams = {
-                    'command': 'tinymist.doStartBrowsingPreview',
-                    'arguments': [['--task-id', self.preview_task_id] + session.config.settings.get('preview.browsing.args')]
-                }
-                session.execute_command(command).then(self._on_preview_result)  # pyright: ignore[reportArgumentType]
+                session.window.run_command('lsp_tinymist_preview')
             elif action == 'export':
                 if view := session.window.active_view():
                     view.run_command('lsp_tinymist_export')
@@ -289,9 +279,6 @@ class LspTinymistPlugin(LspPlugin):
                 if view := session.window.active_view():
                     view.run_command('lsp_tinymist_export', {'format': 'pdf'})
         return Promise.resolve(None)
-
-    def _on_preview_result(self, params: PreviewResult | Error) -> None:
-        pass
 
     def on_selection_modified_async(self, session_view: SessionViewProtocol) -> None:
         if not self.preview_task_id:
@@ -314,6 +301,30 @@ class LspTinymistPlugin(LspPlugin):
                 'arguments': [self.preview_task_id, params]
             }
             session_view.session.execute_command(command)
+
+
+class LspTinymistPreviewCommand(LspWindowCommand):
+
+    def run(self) -> None:
+        session = self.session()
+        if not session:
+            return
+        plugin = cast(LspTinymistPlugin, session.plugin)
+        if plugin.preview_task_id:
+            command: ExecuteCommandParams = {
+                'command': 'tinymist.doKillPreview',
+                'arguments': [plugin.preview_task_id]
+            }
+            session.execute_command(command)
+        plugin.preview_task_id = str(uuid4())
+        command = {
+            'command': 'tinymist.doStartBrowsingPreview',
+            'arguments': [['--task-id', plugin.preview_task_id] + session.config.settings.get('preview.browsing.args')]
+        }
+        session.execute_command(command).then(self._on_preview_result_async)  # pyright: ignore[reportArgumentType]
+
+    def _on_preview_result_async(self, params: PreviewResult | Error) -> None:
+        pass
 
 
 class LspTinymistExportCommand(LspTextCommand):
