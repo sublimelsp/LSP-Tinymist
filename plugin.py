@@ -197,17 +197,16 @@ class LspTinymistPlugin(LspPlugin):
     def on_pre_start_async(cls, context: OnPreStartContext) -> None:
         if not TARBALL_NAME:
             raise PluginStartError('Prebuilt Tinymist binary is not available for this system.')
-        server_path = cls.plugin_storage_path
+        server_dir = cls.plugin_storage_path
         if TARBALL_NAME.endswith('.tar.gz'):
-            server_path /= TARBALL_NAME.split('.')[0]
-        server_dir = str(server_path)
-        context.variables['server_dir'] = server_dir
+            server_dir /= TARBALL_NAME.split('.')[0]
+        context.variables['server_dir'] = str(server_dir)
         version_file = cls.plugin_storage_path / 'VERSION'
         if not version_file.is_file() or version_file.read_text().strip() != VERSION:
             download_url = f'https://github.com/Myriad-Dreamin/tinymist/releases/download/{VERSION}/{TARBALL_NAME}'
             tarball_path = str(cls.plugin_storage_path / TARBALL_NAME)
             download(download_url, tarball_path)
-            decompress(tarball_path, server_dir)
+            decompress(tarball_path, str(cls.plugin_storage_path))
             version_file.write_text(VERSION)
 
     def on_initialized_async(self) -> None:
