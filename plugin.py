@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from .lib.tarball import decompress
 from .lib.tarball import download
-from functools import partial
 from LSP.plugin import command_handler
+from LSP.plugin import Error
 from LSP.plugin import LspPlugin
 from LSP.plugin import LspTextCommand
 from LSP.plugin import LspWindowCommand
@@ -11,14 +11,12 @@ from LSP.plugin import notification_handler
 from LSP.plugin import OnPreStartContext
 from LSP.plugin import parse_uri
 from LSP.plugin import PluginStartError
-from LSP.plugin import Promise
 from LSP.plugin import Request
+from LSP.plugin import run_coroutine
 from LSP.plugin import ServerResponse
 from LSP.plugin import SessionViewProtocol
 from LSP.plugin import uri_handler
 from LSP.plugin.core.open import open_externally
-from LSP.plugin.core.protocol import Error
-from LSP.plugin.core.protocol import ResponseError
 from LSP.plugin.core.typing import NotRequired
 from LSP.plugin.core.typing import StrEnum
 from LSP.plugin.core.views import first_selection_region
@@ -209,10 +207,10 @@ class LspTinymistPlugin(LspPlugin):
             decompress(tarball_path, str(cls.plugin_storage_path))
             version_file.write_text(VERSION)
 
-    def on_initialized_async(self) -> None:
+    async def on_initialized(self) -> None:
         self.preview_task_id: str = ''
 
-    def on_server_response_async(self, response: ServerResponse) -> None:
+    async def on_server_response(self, response: ServerResponse) -> None:
         if response['method'] == 'textDocument/codeLens':
             if (result := response['result']) and len(result) == 5:
                 del result[4]  # More
@@ -247,11 +245,11 @@ class LspTinymistPlugin(LspPlugin):
         pass
 
     @uri_handler('command')
-    def on_open_command_uri(self, uri: DocumentUri, flags: sublime.NewFileFlags) -> Promise[sublime.Sheet | None]:
+    async def on_open_command_uri(self, uri: DocumentUri, flags: sublime.NewFileFlags) -> sublime.Sheet | None:
         parsed = urlparse(uri)
         scheme, filename = parse_uri(unquote(parsed.query).strip('[]"'))
         if scheme != 'file':
-            return Promise.resolve(None)
+            return None
         command = parsed.path
         if command == 'tinymist.openInternal':
             if session := self.weaksession():
@@ -259,14 +257,14 @@ class LspTinymistPlugin(LspPlugin):
                 # Note that in case of an image file the returned View will not be valid and the only way to get the
                 # Sheet seems to be via Window.active_sheet().
                 sheet = view.sheet() if view.is_valid() else session.window.active_sheet()
-                return Promise.resolve(sheet)
-            return Promise.resolve(None)
+                return sheet
+            return None
         if command == 'tinymist.openExternal':
             open_externally(filename)
-        return Promise.resolve(None)
+        return None
 
     @command_handler('tinymist.runCodeLens')
-    def on_run_code_lens(self, arguments: list[str] | None) -> Promise[None]:
+    async def on_run_code_lens(self, arguments: list[str] | None) -> None:
         if arguments and (session := self.weaksession()):
             action = arguments[0]
             if action == 'preview':
@@ -277,7 +275,6 @@ class LspTinymistPlugin(LspPlugin):
             elif action == 'export-pdf':
                 if view := session.window.active_view():
                     view.run_command('lsp_tinymist_export', {'format': 'pdf'})
-        return Promise.resolve(None)
 
     def on_selection_modified_async(self, session_view: SessionViewProtocol) -> None:
         if not self.preview_task_id:
@@ -304,7 +301,10 @@ class LspTinymistPlugin(LspPlugin):
 
 class LspTinymistPreviewCommand(LspWindowCommand):
 
-    def run(self) -> None:
+    def run(self) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+        run_coroutine(self._run())
+
+    async def _run(self) -> None:
         session = self.session()
         if not session:
             return
@@ -320,15 +320,15 @@ class LspTinymistPreviewCommand(LspWindowCommand):
             'command': 'tinymist.doStartBrowsingPreview',
             'arguments': [['--task-id', plugin.preview_task_id] + session.config.settings.get('preview.browsing.args')]
         }
-        session.execute_command(command).then(self._on_preview_result_async)  # pyright: ignore[reportArgumentType]
-
-    def _on_preview_result_async(self, params: PreviewResult | Error) -> None:
-        pass
+        await session.run_command(command)
 
 
 class LspTinymistExportCommand(LspTextCommand):
 
     def run(self, edit: sublime.Edit, format: str) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+        run_coroutine(self._run(format))
+
+    async def _run(self, format: str) -> None:
         filename = self.view.file_name()
         if not filename:
             self._status_message('Export unavailable for unsaved file')
@@ -364,14 +364,11 @@ class LspTinymistExportCommand(LspTextCommand):
             'command': command_name,
             'arguments': [filename, extra_opts, actions]
         }
-        session.execute_command(command).then(self._on_export_result_async)  # pyright: ignore[reportArgumentType]
+        await session.run_command(command)
 
     def input(self, args: dict[str, Any]) -> sublime_plugin.ListInputHandler | None:
         if 'format' not in args:
             return ExportFormatInputHandler()
-
-    def _on_export_result_async(self, response: ExportResponse | Error) -> None:
-        pass
 
     def _status_message(self, msg: str) -> None:
         if window := self.view.window():
@@ -392,10 +389,10 @@ class LspTinymistOnEnterCommand(LspTextCommand):
 
     capability = 'experimental.onEnter'
 
-    def run(self, edit: sublime.Edit) -> None:
-        sublime.set_timeout_async(self._run_async)
+    def run(self, edit: sublime.Edit) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+        run_coroutine(self._run())
 
-    def _run_async(self) -> None:
+    async def _run(self) -> None:
         session = self.session_by_name(self.session_name, self.capability)
         if not session:
             return
@@ -405,33 +402,22 @@ class LspTinymistOnEnterCommand(LspTextCommand):
         session_view = session.session_view_for_view_async(self.view)
         if not session_view:
             return
-        session_view.session_buffer.purge_changes_async(self.view)  # pyright: ignore[reportAttributeAccessIssue]
+        await session_view.session_buffer.purge_changes(self.view)  # pyright: ignore[reportAttributeAccessIssue]
         params: OnEnterParams = {
             'textDocument': text_document_identifier(self.view),
             'range': region_to_range(self.view, selection_region)
         }
         version = self.view.change_count()
-        session.send_request_async(
-            Request('experimental/onEnter', params, self.view),
-            partial(self._on_result_async, version),
-            partial(self._on_error_async, version)
-        )
-
-    def _on_result_async(self, version: int, text_edits: list[TextEdit] | None) -> None:
+        text_edits = await session.request(Request('experimental/onEnter', params, self.view))
         if version != self.view.change_count():
             return
-        if text_edits:
-            # Convert custom TextEdit with placeholder into SnippetTextEdit
-            edits: list[TextEdit | SnippetTextEdit] = [
-                {'range': text_edit['range'], 'snippet': {'kind': 'snippet', 'value': value}}
-                if '$0' in (value := text_edit['newText']) else text_edit
-                for text_edit in text_edits
-            ]
-            self.view.run_command('lsp_apply_text_document_edit', {'edits': edits})
-        else:
+        if isinstance(text_edits, Error) or not text_edits:
             self.view.run_command('insert', {'characters': '\n'})
-
-    def _on_error_async(self, version: int, error: ResponseError) -> None:
-        if version != self.view.change_count():
             return
-        self.view.run_command('insert', {'characters': '\n'})
+        # Convert custom TextEdit with placeholder into SnippetTextEdit
+        edits: list[TextEdit | SnippetTextEdit] = [
+            {'range': text_edit['range'], 'snippet': {'kind': 'snippet', 'value': value}}
+            if '$0' in (value := text_edit['newText']) else text_edit
+            for text_edit in text_edits
+        ]
+        self.view.run_command('lsp_apply_text_document_edit', {'edits': edits})  # pyright: ignore[reportArgumentType]
