@@ -1,0 +1,8 @@
+[
+    { "id": "lsp" },
+    {
+        "caption": "LSP-Tinymist: Pin as Main File",
+        "command": "lsp_tinymist_pin_main",
+        "args": {"files": []}
+    },
+]

@@ -31,6 +31,7 @@ from LSP.protocol import Range
 from LSP.protocol import SnippetTextEdit
 from LSP.protocol import TextDocumentIdentifier
 from LSP.protocol import TextEdit
+from os.path import basename
 from typing import Any
 from typing import cast
 from typing import Literal
@@ -386,6 +387,20 @@ class ExportFormatInputHandler(sublime_plugin.ListInputHandler):
     def list_items(self) -> list[sublime.ListInputItem]:
         formats = ('PDF', 'PNG', 'SVG', 'HTML', 'Markdown', 'LaTeX')
         return [sublime.ListInputItem(f'Export as {fmt}', fmt) for fmt in formats]
+
+
+class LspTinymistPinMainCommand(LspWindowCommand):
+
+    def run(self, *, files: list[str]) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+        if session := self.session():
+            command: ExecuteCommandParams = {
+                'command': 'tinymist.pinMain',
+                'arguments': [files[0]]
+            }
+            session.execute_command(command)
+
+    def is_visible(self, *, files: list[str]) -> bool:  # pyright: ignore[reportIncompatibleMethodOverride]
+        return super().is_enabled() and len(files) == 1 and basename(files[0]).endswith('.typ')
 
 
 class LspTinymistOnEnterCommand(LspTextCommand):
