@@ -4,27 +4,27 @@ from .lib.tarball import decompress
 from .lib.tarball import download
 from functools import partial
 from LSP.plugin import command_handler
+from LSP.plugin import Error
+from LSP.plugin import first_selection_region
 from LSP.plugin import LspPlugin
 from LSP.plugin import LspTextCommand
 from LSP.plugin import LspWindowCommand
 from LSP.plugin import notification_handler
+from LSP.plugin import offset_to_position
 from LSP.plugin import OnPreStartContext
 from LSP.plugin import parse_uri
 from LSP.plugin import PluginStartError
 from LSP.plugin import Promise
+from LSP.plugin import region_to_range
 from LSP.plugin import Request
 from LSP.plugin import ServerResponse
 from LSP.plugin import SessionViewProtocol
+from LSP.plugin import text_document_identifier
 from LSP.plugin import uri_handler
 from LSP.plugin.core.open import open_externally
-from LSP.plugin.core.protocol import Error
 from LSP.plugin.core.protocol import ResponseError
 from LSP.plugin.core.typing import NotRequired
 from LSP.plugin.core.typing import StrEnum
-from LSP.plugin.core.views import first_selection_region
-from LSP.plugin.core.views import position
-from LSP.plugin.core.views import region_to_range
-from LSP.plugin.core.views import text_document_identifier
 from LSP.protocol import DocumentUri
 from LSP.protocol import ExecuteCommandParams
 from LSP.protocol import Range
@@ -289,7 +289,7 @@ class LspTinymistPlugin(LspPlugin):
                 point = view.sel()[0].b
             except IndexError:
                 return
-            pos = position(view, point)
+            pos = offset_to_position(view, point)
             params: PreviewScrollParams = {
                 'event': 'panelScrollTo',
                 'filepath': filepath,
