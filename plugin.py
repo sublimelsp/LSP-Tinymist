@@ -417,10 +417,9 @@ class LspTinymistOnEnterCommand(LspTextCommand):
         selection_region = first_selection_region(self.view)
         if selection_region is None:
             return
-        session_view = session.session_view_for_view_async(self.view)
-        if not session_view:
+        if not (view_listener := self.get_listener()):
             return
-        session_view.session_buffer.purge_changes_async(self.view)  # pyright: ignore[reportAttributeAccessIssue]
+        view_listener.purge_changes_async()
         params: OnEnterParams = {
             'textDocument': text_document_identifier(self.view),
             'range': region_to_range(self.view, selection_region)
