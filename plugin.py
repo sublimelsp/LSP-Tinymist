@@ -215,9 +215,11 @@ class LspTinymistPlugin(LspPlugin):
 
     def on_server_response_async(self, response: ServerResponse) -> None:
         if response['method'] == 'textDocument/codeLens':
-            if (result := response['result']) and len(result) == 5:
-                del result[4]  # More
-                del result[0]  # Profile
+            # Hide unnecessary or unimplemented code lenses
+            if result := response['result']:
+                for idx in reversed(range(len(result))):
+                    if (command := result[idx].get('command')) and command['title'] in ('Profile', 'More ..'):
+                        del result[idx]
 
     @notification_handler('tinymist/compileStatus')
     def on_compile_status(self, params: CompileStatusParams) -> None:
