@@ -26,6 +26,14 @@
         }
     },
     {
+        "caption": "LSP-Tinymist: Clear Cache",
+        "command": "lsp_execute",
+        "args": {
+            "session_name": "LSP-Tinymist",
+            "command_name": "tinymist.doClearCache"
+        }
+    },
+    {
         "caption": "LSP-Tinymist: Export…",
         "command": "lsp_tinymist_export"
     },
