@@ -31,11 +31,12 @@
         // Valid values: "never", "onSave", "onType"
         "exportPdf": "never",
         // The target to export the document to.
-        // Note: you can still export PDF when it is set to "html".
+        // Note: you can still export PDF when it is set to "html" or "bundle".
         // This configuration only affects how the language server completes your code.
         // Valid values:
         // "paged" - The current export target is for PDF, PNG, and SVG export.
         // "html"  - The current export target is for HTML export.
+        // "bundle" - The current export target is for bundle export.
         "exportTarget": "paged",
         // A list of file or directory paths to fonts.
         // Note: the configuration source in higher priority will override the configuration
@@ -55,9 +56,16 @@
         // Note: this has lower priority than the formatter's specific configurations.
         "formatterPrintWidth": 120,
         // Controls how the formatter handles prose line wrapping.
-        // If enabled, the formatter will insert hard line breaks at the specified print width.
         // If disabled, the formatter keeps the original line breaks and spaces.
-        "formatterProseWrap": false,
+        // If enabled, the formatter will insert hard line breaks at the specified print width,
+        // or at the end of each sentence with the "sentence" mode.
+        // Valid values:
+        // "none" - Keep the original line breaks and spaces in prose.
+        // "fill" - Wrap prose to fit within the configured print width.
+        // "sentence" - Place each sentence on its own line.
+        // true - equivalent to "fill"
+        // false - equivalent to "none"
+        "formatterProseWrap": "none",
         // Enable or disable lint checks.
         "lint.enabled": false,
         // Configure when to perform lint checks.

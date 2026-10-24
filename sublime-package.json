@@ -56,10 +56,10 @@
                       "enum": ["never", "onSave", "onType"]
                     },
                     "exportTarget": {
-                      "markdownDescription": "The target to export the document to.\n\nNote: you can still export PDF when it is set to \"html\". This configuration only affects how the language server completes your code.",
+                      "markdownDescription": "The target to export the document to.\n\nNote: you can still export PDF when it is set to \"html\" or \"bundle\". This configuration only affects how the language server completes your code.",
                       "type": "string",
                       "default": "paged",
-                      "enum": ["paged", "html"]
+                      "enum": ["paged", "html", "bundle"]
                     },
                     "fontPaths": {
                       "markdownDescription": "A list of file or directory paths to fonts.\n\nNote: the configuration source in higher priority will override the configuration source in lower priority. The order of precedence is:\n\n1. \"fontPaths\"\n2. \"typstExtraArgs.fontPaths\"\n3. LSP's CLI argument `--font-path`\n4. the environment variable `TYPST_FONT_PATHS` (a path list separated by `;` (on Windows) or `:` (otherwise)).\n\nNote: if the path to fonts is a relative path, it will be resolved based on the root directory.",
@@ -86,9 +86,17 @@
                       "default": 120
                     },
                     "formatterProseWrap": {
-                      "markdownDescription": "Controls how the formatter handles prose line wrapping.\nIf enabled, the formatter will insert hard line breaks at the specified print width.\nIf disabled, the formatter keeps the original line breaks and spaces.",
-                      "type": "boolean",
-                      "default": false
+                      "markdownDescription": "Controls how the formatter handles prose line wrapping.\nIf disabled, the formatter keeps the original line breaks and spaces.\nIf enabled, the formatter will insert hard line breaks at the specified print width, or at the end of each sentence with the \"sentence\" mode.",
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": ["none", "fill", "sentence"]
+                        },
+                        {
+                          "type": "boolean"
+                        }
+                      ],
+                      "default": "none"
                     },
                     "lint.enabled": {
                       "markdownDescription": "Enable or disable lint checks.",
