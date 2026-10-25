@@ -13,4 +13,4 @@ jobs:
     with:
       # Provides the Typst syntax, which Sublime Text doesn't include.
       extra-packages: |
-        hyrious/typst-syntax-highlight
+        Typst
