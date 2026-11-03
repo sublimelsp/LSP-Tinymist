@@ -244,7 +244,7 @@ class LspTinymistPlugin(LspPlugin):
         # The server requests to update the document outline.
         pass
 
-    @notification_handler('tinymist/previewDispose')
+    @notification_handler('tinymist/preview/dispose')
     def on_preview_dispose(self, params: PreviewDisposeParams) -> None:
         # The server requests to dispose (clean up) a preview task when it is no longer needed.
         pass
