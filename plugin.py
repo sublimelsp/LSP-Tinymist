@@ -3,6 +3,7 @@ from __future__ import annotations
 from .lib.tarball import decompress
 from .lib.tarball import download
 from functools import partial
+from LSP.plugin import ClientRequest
 from LSP.plugin import command_handler
 from LSP.plugin import Error
 from LSP.plugin import first_selection_region
@@ -212,6 +213,13 @@ class LspTinymistPlugin(LspPlugin):
 
     def on_initialized_async(self) -> None:
         self.preview_task_id: str = ''
+        self.main_file: str | None = None
+
+    def on_pre_send_request_async(self, request: ClientRequest, view: sublime.View | None) -> None:
+        if request['method'] == 'workspace/executeCommand':
+            params = request['params']
+            if params['command'] == 'tinymist.pinMain' and (arguments := params.get('arguments')):
+                self.main_file = cast('str | None', arguments[0])
 
     def on_server_response_async(self, response: ServerResponse) -> None:
         if response['method'] == 'textDocument/codeLens':
@@ -395,14 +403,23 @@ class LspTinymistPinMainCommand(LspWindowCommand):
 
     def run(self, *, files: list[str]) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
         if session := self.session():
+            assert isinstance(session.plugin, LspTinymistPlugin)
+            file = files[0]
             command: ExecuteCommandParams = {
                 'command': 'tinymist.pinMain',
-                'arguments': [files[0]]
+                'arguments': [file if file != session.plugin.main_file else None]
             }
             session.execute_command(command)
 
     def is_visible(self, *, files: list[str]) -> bool:  # pyright: ignore[reportIncompatibleMethodOverride]
         return super().is_enabled() and len(files) == 1 and basename(files[0]).endswith('.typ')
+
+    def description(self, *, files: list[str]) -> str | None:  # pyright: ignore[reportIncompatibleMethodOverride]
+        if session := self.session():
+            assert isinstance(session.plugin, LspTinymistPlugin)
+            if files[0] != session.plugin.main_file:
+                return 'LSP-Tinymist: Pin as Main File'
+        return 'LSP-Tinymist: Unpin Main File'
 
 
 class LspTinymistOnEnterCommand(LspTextCommand):
