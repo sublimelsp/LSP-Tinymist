@@ -22,7 +22,6 @@ from LSP.plugin import ServerResponse
 from LSP.plugin import SessionViewProtocol
 from LSP.plugin import text_document_identifier
 from LSP.plugin import uri_handler
-from LSP.plugin.core.open import open_externally
 from LSP.plugin.core.protocol import ResponseError
 from LSP.plugin.core.typing import NotRequired
 from LSP.plugin.core.typing import StrEnum
@@ -41,8 +40,10 @@ from typing import Union
 from urllib.parse import unquote
 from urllib.parse import urlparse
 from uuid import uuid4
+import os
 import sublime
 import sublime_plugin
+import subprocess
 
 VERSION = 'v0.15.12'
 TARBALL_NAME = {
@@ -191,6 +192,20 @@ def plugin_loaded() -> None:
 
 def plugin_unloaded() -> None:
     LspTinymistPlugin.unregister()
+
+
+def open_externally(path: str) -> None:
+    """Open the file with the default application of the OS."""
+    try:
+        platform = sublime.platform()
+        if platform == 'windows':
+            os.startfile(path)  # type: ignore
+        elif platform == 'osx':
+            subprocess.check_call(('/usr/bin/open', path))
+        else:
+            subprocess.check_call(('xdg-open', path))
+    except Exception as ex:
+        print(f'LSP-Tinymist: failed to open {path}: {ex}')
 
 
 class LspTinymistPlugin(LspPlugin):
