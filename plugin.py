@@ -18,12 +18,12 @@ from LSP.plugin import PluginStartError
 from LSP.plugin import Promise
 from LSP.plugin import region_to_range
 from LSP.plugin import Request
+from LSP.plugin import ResponseError
 from LSP.plugin import ServerResponse
 from LSP.plugin import SessionViewProtocol
 from LSP.plugin import text_document_identifier
 from LSP.plugin import uri_handler
 from LSP.plugin.core.open import open_externally
-from LSP.plugin.core.protocol import ResponseError
 from LSP.plugin.core.typing import NotRequired
 from LSP.plugin.core.typing import StrEnum
 from LSP.protocol import DocumentUri
