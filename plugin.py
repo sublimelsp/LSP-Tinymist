@@ -22,7 +22,6 @@ from LSP.plugin import ServerResponse
 from LSP.plugin import SessionViewProtocol
 from LSP.plugin import text_document_identifier
 from LSP.plugin import uri_handler
-from LSP.plugin.core.open import open_externally
 from LSP.plugin.core.protocol import ResponseError
 from LSP.plugin.core.typing import NotRequired
 from LSP.plugin.core.typing import StrEnum
@@ -273,7 +272,8 @@ class LspTinymistPlugin(LspPlugin):
                 return Promise.resolve(sheet)
             return Promise.resolve(None)
         if command == 'tinymist.openExternal':
-            open_externally(filename)
+            if session := self.weaksession():
+                session.open_externally(filename)
         return Promise.resolve(None)
 
     @command_handler('tinymist.runCodeLens')
