@@ -40,10 +40,8 @@ from typing import Union
 from urllib.parse import unquote
 from urllib.parse import urlparse
 from uuid import uuid4
-import os
 import sublime
 import sublime_plugin
-import subprocess
 
 VERSION = 'v0.15.12'
 TARBALL_NAME = {
@@ -194,20 +192,6 @@ def plugin_unloaded() -> None:
     LspTinymistPlugin.unregister()
 
 
-def open_externally(path: str) -> None:
-    """Open the file with the default application of the OS."""
-    try:
-        platform = sublime.platform()
-        if platform == 'windows':
-            os.startfile(path)  # type: ignore
-        elif platform == 'osx':
-            subprocess.check_call(('/usr/bin/open', path))
-        else:
-            subprocess.check_call(('xdg-open', path))
-    except Exception as ex:
-        print(f'LSP-Tinymist: failed to open {path}: {ex}')
-
-
 class LspTinymistPlugin(LspPlugin):
 
     @classmethod
@@ -288,7 +272,8 @@ class LspTinymistPlugin(LspPlugin):
                 return Promise.resolve(sheet)
             return Promise.resolve(None)
         if command == 'tinymist.openExternal':
-            open_externally(filename)
+            if session := self.weaksession():
+                session.open_externally(filename)
         return Promise.resolve(None)
 
     @command_handler('tinymist.runCodeLens')
